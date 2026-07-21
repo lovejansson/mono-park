@@ -1,0 +1,52 @@
+html {
+    font-size: 10px;
+}
+
+
+html,
+body {
+    height: 100%;
+    width: 100%;
+}
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Source Code Pro', monospace;
+}
+
+
+body {
+    font-size: 1.6rem;
+        background-color: black;
+    display: flex;
+    flex-direction: column;
+}
+
+
+
+/* Keep art at aspect ratio 16/9 and fill either top & bottom or left & right with black depending on screen aspect ratio */
+#div-art-container {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16/9;
+    position: relative;
+    margin: auto;
+}
+
+
+@media screen and (min-aspect-ratio: 16/9) {
+    #div-art-container {
+        width: auto;
+        height: 100%;
+    }
+}
+
+
+#canvas-art {
+    position: absolute;
+    width: 100%;
+    image-rendering: pixelated;
+}

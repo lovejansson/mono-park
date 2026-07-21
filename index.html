@@ -1,0 +1,169 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="/index.css"></link>
+</head>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap"
+    rel="stylesheet">
+<body>
+
+    <main id="div-art-container">
+        <canvas id="canvas-art" width="640" height="360"></canvas>
+        <audio-player></audio-player>
+    </main>
+</body>
+
+<template id="template-audio-player">
+
+    <style>
+        :host {
+            --color: #fefefe;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+
+        }
+
+        button {
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            outline: none;
+        }
+
+
+        .icon {
+            width: 2.4rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+
+        }
+
+        #bar {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            opacity: 0;
+            transition: opacity 0.2s ease-in;
+            padding: 1rem;
+            background-color: #121212c9;
+            color: var(--color);
+        }
+
+        #controls {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            color: var(--color);
+        }
+
+        #player:hover>#bar,
+        #player.active>#bar {
+            opacity: 1;
+        }
+
+        #player:focus {
+            outline: none;
+        }
+
+        #btn-play-pause {
+            color: var(--color);
+        }
+
+        #btn-fullscreen:hover,
+        #btn-play-pause:hover,
+        #volume-control:hover {
+            opacity: 0.7;
+        }
+
+        #volume-control {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            opacity: 1;
+            transition: opacity 0.2s ease;
+            height: 2.4rem;
+        }
+
+        .square-filled {
+            width: 0.75em;
+            aspect-ratio: 1/1;
+            background-color: var(--color);
+        }
+
+        .square-empty {
+            width: 0.75em;
+            aspect-ratio: 1/1;
+            border: 2px solid var(--color);
+            background-color: transparent;
+        }
+
+        .icon {
+            width: 2.4rem;
+            height: 2.4rem;
+            color: var(--color);
+        }
+    </style>
+
+    <div tabindex="0" id="player">
+        <section id="bar">
+            <section id="controls">
+                <button id="btn-play-pause">
+                    <svg class="icon" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M10 20H8V4h2v2h2v3h2v2h2v2h-2v2h-2v3h-2v2z" fill="currentColor" />
+                    </svg>
+                </button>
+
+                <div id="volume-control">
+                    <button></button>
+                    <button></button>
+                    <button></button>
+                    <button></button>
+                    <button></button>
+                </div>
+            </section>
+            <button id="btn-fullscreen">
+               <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <!-- Top-left arrow -->
+                <path d="M3 9V3h6v2H5v4H3z"/>
+                <!-- Top-right arrow -->
+                <path d="M21 9h-2V5h-4V3h6v6z"/>
+                <!-- Bottom-left arrow -->
+                <path d="M3 15h2v4h4v2H3v-6z"/>
+                <!-- Bottom-right arrow -->
+                <path d="M15 21v-2h4v-4h2v6h-6z"/>
+                </svg>
+            </button>
+        </section>
+    </div>
+</template>
+    <script src="index.js" type="module"></script>
+</html>
