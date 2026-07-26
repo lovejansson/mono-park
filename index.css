@@ -20,7 +20,7 @@ body {
 
 body {
     font-size: 1.6rem;
-        background-color: black;
+    background-color: black;
     display: flex;
     flex-direction: column;
 }
@@ -34,6 +34,7 @@ body {
     aspect-ratio: 16/9;
     position: relative;
     margin: auto;
+    overflow: hidden;
 }
 
 

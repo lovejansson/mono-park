@@ -1,1 +1,6 @@
 # Todo 
+
+
+ANIMERINGAR
+
+Animeringar är "root animations", dvs, position uppdateras alltid i och med att frame uppdateras, det är frame update som styr position updates, det är för att det såg bättre ut, speciellt för skate animering är det bra.
