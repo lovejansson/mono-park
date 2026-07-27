@@ -1,7 +1,7 @@
 import { createPathAStar } from "../grid.ts";
 import type { Sprite } from "./index.ts";
 import type { Cell, Direction, Vec2 } from "./types.ts";
-import { getPosDiff, posToCell } from "../utils.ts";
+import { getPosDiff, posToCell } from "./utils.ts";
 
 // Get direction diff for x and why and use that as index to get label for direction. directionLables[y + 1][x + 1]
 const directionLables = [

@@ -1,8 +1,6 @@
-import { getRandomFreeCell } from "../grid.ts";
-import { Scene, StaticImage } from "../lib";
+import { Scene, StaticImage } from "../lib"
 import type { Direction, Vec2 } from "../lib/types";
-import type Play from "../Play";
-import { cellToPos, manhattan, posToCell } from "../utils.ts";
+import { cellToPos, manhattan, posToCell } from "../lib";
 
 export type ObstacleType = "rail" | "bowl" | "flat";
 

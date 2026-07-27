@@ -18,8 +18,8 @@ export default abstract class Scene {
   addObject(obj: ArtObject): void {
     if (this.objects.some((o) => o.id === obj.id))
       throw new Error(`Object with id ${obj.id} is already added to scene.`);
-
     this.objects.push(obj);
+  
   }
 
   removeObject(obj: ArtObject): void {
@@ -31,6 +31,7 @@ export default abstract class Scene {
   }
 
   update(dt: number): void {
+  
     for (const obj of this.objects) {
       obj.update(dt);
     }

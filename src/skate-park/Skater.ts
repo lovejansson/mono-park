@@ -1,5 +1,5 @@
 import type { ActionTag } from "../actions.ts";
-import { Sprite } from "../lib";
+import Human, { PositionUpdateType, type AnimationSetting } from "../Human.ts";
 import type { OverlayOptions } from "../lib";
 import type { Direction, Vec2 } from "../lib/types";
 import type Play from "../Play.ts";
@@ -7,120 +7,38 @@ import SkatingAtPark from "./SkatePark.ts";
 
 type Skill = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
-const PositionUpdateType = {
-  Vel: "vel",
-  Delta: "delta",
-} as const;
-
-type PositionUpdateType =
-  (typeof PositionUpdateType)[keyof typeof PositionUpdateType];
-
-type AnimationSetting = {
-  positionUpdateType: PositionUpdateType;
-  repeat: number | boolean;
-  isAnim: boolean;
-};
-
-const Motions: Record<string, { dx: number; dy: number }[]> = {
-  "cruise-ramp": [
-    { dx: 7, dy: 9 },
-    { dx: 9, dy: 14 },
-    { dx: 12, dy: 6 },
-    { dx: 18, dy: 4 },
-    { dx: 16, dy: 0 },
-    { dx: 18, dy: -4 },
-    { dx: 12, dy: -6 },
-    { dx: 9, dy: -14 },
-    { dx: 7, dy: -9 },
-    { dx: 0, dy: 0 },
-  ],
-
-  "cruise-bowl-h": [
-    { dx: 2, dy: 4 },
-    { dx: 8, dy: 6 },
-    { dx: 12, dy: 4 },
-    { dx: 16, dy: 2 },
-    { dx: 36, dy: 0 },
-    { dx: 16, dy: -2 },
-    { dx: 12, dy: -4 },
-    { dx: 8, dy: -6 },
-    { dx: 2, dy: -4 },
-  ],
-  "cruise-bowl-s": [
-    { dx: 0, dy: 8 },
-    { dx: 0, dy: 24 },
-    { dx: 0, dy: 16 },
-    { dx: 0, dy: 16 },
-    { dx: 0, dy: 16 },
-    { dx: 0, dy: 24 },
-    { dx: 0, dy: 8 },
-  ],
-
-  "cruise-bowl-n": [
-    { dx: 0, dy: -8 },
-    { dx: 0, dy: -24 },
-    { dx: 0, dy: -16 },
-    { dx: 0, dy: -16 },
-    { dx: 0, dy: -16 },
-    { dx: 0, dy: -24 },
-    { dx: 0, dy: -8 },
-  ],
-
-  "jump-flat": [
-    { dx: 0, dy: 4 },
-    { dx: 0, dy: 0 },
-    { dx: 0, dy: 0 },
-    { dx: 0, dy: 0 },
-    { dx: 0, dy: -4 },
-  ],
-  "jump-up-e": [{ dx: 4, dy: -8 }],
-  "jump-down-e": [{ dx: 8, dy: 8 }],
-  "jump-up-w": [{ dx: -4, dy: -8 }],
-  "jump-down-w": [{ dx: -8, dy: 8 }],
-
-  "kickflip-f": Array(2).fill({ dx: -4, dy: 0 }),
-  "kickflip-b": Array(2).fill({ dx: 4, dy: 0 }),
-  "shove-it-f": Array(4).fill({ dx: -2, dy: 0 }),
-  "shove-it-b": Array(4).fill({ dx: 2, dy: 0 }),
-};
-
-export default class Skater extends Sprite {
+export default class Skater extends Human {
   static CRUISE_SPEED = 4;
   static GRIND_SPEED = 4;
   static TRICK_SPEED = 4;
   static WALK_SPEED = 1;
 
   skill: Skill;
-  who: string;
   skatingAtPark: SkatingAtPark;
-  tileSize: number;
   obstacle: number | null;
   bench: number | null;
-  action: ActionTag | null;
-  initAction: ActionTag;
 
   constructor(
     scene: Play,
     pos: Vec2,
-    who: string,
+    name: string,
     skill: Skill,
     initAction: ActionTag,
   ) {
-    super(scene, pos, 16, 32, "s");
+    super(scene, pos, name, initAction);
 
-    this.tileSize = scene.art!.tileSize;
-    this.drawOffset.y = -this.tileSize;
-    this.initAction = initAction;
-
-    this.who = who;
     this.skill = skill;
-    this.action = null;
+    this.skatingAtPark = new SkatingAtPark(this);
+    this.obstacle = null;
+    this.bench = null;
+  }
 
-    this.animations.registerSpritesheet(`${who}-skater`, {
+  init(): void {
+    this.animations.registerSpritesheet(`${this.name}-skater`, {
       defaults: REPEAT_DEFAULTS,
     });
 
-    this.animations.registerSpritesheet(`${who}-base`, {
+    this.animations.registerSpritesheet(`${this.name}-base`, {
       defaults: REPEAT_DEFAULTS,
     });
 
@@ -135,7 +53,7 @@ export default class Skater extends Sprite {
       // console.log("ANIMATION CHANGE ", anim)
 
       switch (updateType) {
-        case PositionUpdateType.Delta:
+        case PositionUpdateType.DELTA:
           const motion = getAnimationMotion(anim);
           if (!motion) throw new Error("Motion data not found for " + anim);
 
@@ -145,14 +63,14 @@ export default class Skater extends Sprite {
 
           if (!delta)
             throw new Error(
-              `Delta not found for animation ${anim} frame ${currentFrame}.`,
+              `DELTA not found for animation ${anim} frame ${currentFrame}.`,
             );
 
           this.pos.x += delta.dx;
           this.pos.y += delta.dy;
 
           break;
-        case PositionUpdateType.Vel:
+        case PositionUpdateType.VEL:
           //  console.log("UPDATING POS ", )
           //           console.log(posToCell(this.pos, this.tileSize))
           // if(this.path.isOnPath && this.path.hasReachedGoal){
@@ -172,65 +90,10 @@ export default class Skater extends Sprite {
             this.vel.x = 0;
           } else if (anim.includes("cruise")) {
             speed = Skater.CRUISE_SPEED;
-            switch (this.direction) {
-              case "n":
-                this.vel.y = -speed;
-                this.vel.x = 0;
-                break;
-              case "e":
-                this.vel.x = speed;
-                this.vel.y = 0;
-                break;
-              case "s":
-                this.vel.y = speed;
-                this.vel.x = 0;
-                break;
-              case "w":
-                this.vel.x = -speed;
-                this.vel.y = 0;
-                break;
-            }
           } else if (anim.includes("grind")) {
             speed = Skater.GRIND_SPEED;
-
-            switch (this.direction) {
-              case "n":
-                this.vel.y = -speed;
-                this.vel.x = 0;
-                break;
-              case "e":
-                this.vel.x = speed;
-                this.vel.y = 0;
-                break;
-              case "s":
-                this.vel.y = speed;
-                this.vel.x = 0;
-                break;
-              case "w":
-                this.vel.x = -speed;
-                this.vel.y = 0;
-                break;
-            }
           } else if (anim.includes("walk")) {
             speed = Skater.WALK_SPEED;
-            switch (this.direction) {
-              case "n":
-                this.vel.y = -speed;
-                this.vel.x = 0;
-                break;
-              case "e":
-                this.vel.x = speed;
-                this.vel.y = 0;
-                break;
-              case "s":
-                this.vel.y = speed;
-                this.vel.x = 0;
-                break;
-              case "w":
-                this.vel.x = -speed;
-                this.vel.y = 0;
-                break;
-            }
           } else if (
             anim.includes("kickflip") ||
             anim.includes("shove-it") ||
@@ -241,28 +104,29 @@ export default class Skater extends Sprite {
           ) {
             if (this.action === "rail-tricks") {
               speed = Skater.TRICK_SPEED;
-              switch (this.direction) {
-                case "n":
-                  this.vel.y = -speed;
-                  this.vel.x = 0;
-                  break;
-                case "e":
-                  this.vel.x = speed;
-                  this.vel.y = 0;
-                  break;
-                case "s":
-                  this.vel.y = speed;
-                  this.vel.x = 0;
-                  break;
-                case "w":
-                  this.vel.x = -speed;
-                  this.vel.y = 0;
-                  break;
-              }
             } else {
               this.vel.y = 0;
               this.vel.x = 0;
             }
+          }
+
+          switch (this.direction) {
+            case "n":
+              this.vel.y = -speed;
+              this.vel.x = 0;
+              break;
+            case "e":
+              this.vel.x = speed;
+              this.vel.y = 0;
+              break;
+            case "s":
+              this.vel.y = speed;
+              this.vel.x = 0;
+              break;
+            case "w":
+              this.vel.x = -speed;
+              this.vel.y = 0;
+              break;
           }
 
           this.pos.x += this.vel.x;
@@ -279,11 +143,6 @@ export default class Skater extends Sprite {
     this.animations.onComplete = (animation: string) => {
       // console.log("COMPLETE", animation);
     };
-
-    this.skatingAtPark = new SkatingAtPark(this);
-
-    this.obstacle = null;
-    this.bench = null;
   }
 
   update(dt: number): void {
@@ -375,434 +234,421 @@ export function getBoardCarryOverlay(
   }
 }
 
+const Motions: Record<string, { dx: number; dy: number }[]> = {
+  "cruise-ramp": [
+    { dx: 7, dy: 9 },
+    { dx: 9, dy: 14 },
+    { dx: 12, dy: 6 },
+    { dx: 18, dy: 4 },
+    { dx: 16, dy: 0 },
+    { dx: 18, dy: -4 },
+    { dx: 12, dy: -6 },
+    { dx: 9, dy: -14 },
+    { dx: 7, dy: -9 },
+    { dx: 0, dy: 0 },
+  ],
+
+  "cruise-bowl-h": [
+    { dx: 2, dy: 4 },
+    { dx: 8, dy: 6 },
+    { dx: 12, dy: 4 },
+    { dx: 16, dy: 2 },
+    { dx: 36, dy: 0 },
+    { dx: 16, dy: -2 },
+    { dx: 12, dy: -4 },
+    { dx: 8, dy: -6 },
+    { dx: 2, dy: -4 },
+  ],
+  "cruise-bowl-s": [
+    { dx: 0, dy: 8 },
+    { dx: 0, dy: 24 },
+    { dx: 0, dy: 16 },
+    { dx: 0, dy: 16 },
+    { dx: 0, dy: 16 },
+    { dx: 0, dy: 24 },
+    { dx: 0, dy: 8 },
+  ],
+
+  "cruise-bowl-n": [
+    { dx: 0, dy: -8 },
+    { dx: 0, dy: -24 },
+    { dx: 0, dy: -16 },
+    { dx: 0, dy: -16 },
+    { dx: 0, dy: -16 },
+    { dx: 0, dy: -24 },
+    { dx: 0, dy: -8 },
+  ],
+
+  "jump-flat": [
+    { dx: 0, dy: 4 },
+    { dx: 0, dy: 0 },
+    { dx: 0, dy: 0 },
+    { dx: 0, dy: 0 },
+    { dx: 0, dy: -4 },
+  ],
+  "jump-up-e": [{ dx: 4, dy: -8 }],
+  "jump-down-e": [{ dx: 8, dy: 8 }],
+  "jump-up-w": [{ dx: -4, dy: -8 }],
+  "jump-down-w": [{ dx: -8, dy: 8 }],
+
+  "kickflip-f": Array(2).fill({ dx: -4, dy: 0 }),
+  "kickflip-b": Array(2).fill({ dx: 4, dy: 0 }),
+  "shove-it-f": Array(4).fill({ dx: -2, dy: 0 }),
+  "shove-it-b": Array(4).fill({ dx: 2, dy: 0 }),
+};
+
 const AnimationSettings: Record<string, AnimationSetting> = {
   "walk-n": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "walk-s": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
 
   "walk-e": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "walk-w": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "walk-board-n": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "walk-board-s": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "walk-board-e": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "walk-board-w": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "idle-sit-n": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "idle-sit-s": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "idle-stand-n": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "idle-stand-s": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "idle-stand-w": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "idle-stand-e": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
 
   "idle-stand-board-n": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "idle-stand-board-s": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
 
   "prep-n": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
 
   "prep-s": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
 
   "flip-n": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "flip-s": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "flip-w": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "flip-e": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
 
   "180-f": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "180-b": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "360-f": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "360-b": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
 
   "180-e-cw": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "180-e-ccw": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "180-w-cw": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "180-w-ccw": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "360-e-cw": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "360-e-ccw": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "360-w-cw": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "360-w-ccw": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
 
   "grab-f": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "grab-b": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "grab-w": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "grab-e": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "kickflip-f": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "kickflip-b": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "shove-it-f": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "shove-it-b": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "ollie-f": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "ollie-b": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: false,
-    isAnim: true,
   },
   "nose-grind-f-w": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "nose-grind-b-w": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "nose-grind-f-e": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "nose-grind-b-e": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
 
   "cruise-n": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "cruise-s": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
 
   "cruise-f-e": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "cruise-f-w": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "cruise-b-e": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "cruise-b-w": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
 
   "cruise-ramp-f-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
   "cruise-ramp-f-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
   "cruise-ramp-b-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
   "cruise-ramp-b-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   "cruise-bowl-f-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
   "cruise-bowl-f-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
   "cruise-bowl-b-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
   "cruise-bowl-b-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   "cruise-bowl-s-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: 7,
-    isAnim: true,
   },
   "cruise-bowl-n-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: 7,
-    isAnim: true,
   },
 
   "cruise-bowl-s-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: 7,
-    isAnim: true,
   },
   "cruise-bowl-n-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: 7,
-    isAnim: true,
   },
 
   "jump-up-f-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   "jump-up-b-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   "jump-up-f-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   "jump-up-b-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   "jump-down-f-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   "jump-down-b-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   "jump-down-f-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   "jump-down-b-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   "ramp-land-w": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
   "ramp-land-e": {
-    positionUpdateType: PositionUpdateType.Delta,
+    positionUpdateType: PositionUpdateType.DELTA,
     repeat: false,
-    isAnim: true,
   },
 
   // Time + movement sync
   "climb-up": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
   "climb-down": {
-    positionUpdateType: PositionUpdateType.Vel,
+    positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
-    isAnim: true,
   },
 };
 
 const AnimationPositionUpdates = Object.fromEntries(
-  Object.entries(AnimationSettings)
-    .filter(([, settings]) => settings.isAnim)
-    .map(([name, settings]) => [name, settings.positionUpdateType]),
+  Object.entries(AnimationSettings).map(([name, settings]) => [
+    name,
+    settings.positionUpdateType,
+  ]),
 ) as Partial<Record<string, PositionUpdateType>>;
 
 const REPEAT_DEFAULTS = Object.fromEntries(
-  Object.entries(AnimationSettings)
-    .filter(([, settings]) => settings.isAnim)
-    .map(([name, settings]) => [name, { repeat: settings.repeat }]),
+  Object.entries(AnimationSettings).map(([name, settings]) => [
+    name,
+    { repeat: settings.repeat },
+  ]),
 ) as Record<string, { repeat: number | boolean }>;
 
 function getAnimationMotion(name: string): { dx: number; dy: number }[] | null {

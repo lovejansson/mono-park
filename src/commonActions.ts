@@ -7,7 +7,7 @@ import { findClosestFreeCell } from "./grid";
 import { Path } from "./lib";
 import type Play from "./Play";
 import Timer from "./Timer";
-import { cellToPos, isSamePos, posToCell } from "./utils";
+import { cellToPos, isSamePos, posToCell } from "./lib";
 
 export interface CommonUpdatable extends Updatable {
   readonly tag: CommonActionTag;
@@ -54,8 +54,8 @@ export class GoTo implements CommonUpdatable {
     const roundedStartCell = posToCell(roundedStartPos, tileSize);
 
     let startCell = roundedStartCell;
-    if (scene.grid[roundedStartCell.row]?.[roundedStartCell.col] !== 0) {
-      const freeCell = findClosestFreeCell(roundedStartCell, scene.grid, [0]);
+    if (scene.parkGrid[roundedStartCell.row]?.[roundedStartCell.col] !== 0) {
+      const freeCell = findClosestFreeCell(roundedStartCell, scene.parkGrid, [0]);
       if (freeCell !== null) {
         startCell = freeCell;
       }
@@ -70,9 +70,9 @@ export class GoTo implements CommonUpdatable {
 
     let goalCell = roundedGoalCell;
     if (
-      scene.grid[roundedGoalCell.row]?.[roundedGoalCell.col] !== 0
+      scene.parkGrid[roundedGoalCell.row]?.[roundedGoalCell.col] !== 0
     ) {
-      const freeCell = findClosestFreeCell(roundedGoalCell, scene.grid, [0]);
+      const freeCell = findClosestFreeCell(roundedGoalCell, scene.parkGrid, [0]);
       if (freeCell !== null) {
         goalCell = freeCell;
       }
@@ -81,7 +81,7 @@ export class GoTo implements CommonUpdatable {
     this.pathGoalPos = cellToPos(goalCell, tileSize);
 
     if (isSamePos(this.human.pos, this.pathStartPos)) {
-      this.path = new Path(this.human, this.pathGoalPos, scene.grid);
+      this.path = new Path(this.human, this.pathGoalPos, scene.parkGrid);
     }
 
     console.log(this.path);
@@ -139,7 +139,7 @@ export class GoTo implements CommonUpdatable {
           this.preApproach.start();
         } else {
           this.human.pos = { ...this.pathStartPos };
-          this.path = new Path(this.human, this.pathGoalPos, scene.grid);
+          this.path = new Path(this.human, this.pathGoalPos, scene.parkGrid);
         }
       }
 
@@ -149,7 +149,7 @@ export class GoTo implements CommonUpdatable {
         if (this.preApproach.isFinished) {
           this.human.pos = { ...this.pathStartPos };
           this.preApproach = null;
-          this.path = new Path(this.human, this.pathGoalPos, scene.grid);
+          this.path = new Path(this.human, this.pathGoalPos, scene.parkGrid);
         }
       }
 

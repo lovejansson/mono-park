@@ -3,7 +3,7 @@ import { type Tilemap } from "./types.ts";
 import { createGrid, getRandomFreeCell } from "./grid.ts";
 import Obstacle, { Bowl, Flat, Rail } from "./skate-park/Obstacle.ts";
 import Skater from "./skate-park/Skater.ts";
-import { cellToPos } from "./utils.ts";
+import { cellToPos } from "./lib";
 import Bench from "./Bench.ts";
 import spikeSkaterJSON from "./assets/spritesheets/spike-skater.json";
 import spikeBaseJSON from "./assets/spritesheets/spike-base.json";
@@ -16,20 +16,24 @@ import loveBaseJSON from "./assets/spritesheets/love-base.json";
 import jasmineSkaterJSON from "./assets/spritesheets/jasmine-skater.json";
 import jasmineBaseJSON from "./assets/spritesheets/jasmine-base.json";
 import doorCafeJSON from "./assets/spritesheets/door-cafe.json";
+import foodsCafeJSON from "./assets/spritesheets/foods.json";
 import { type AsepriteJSON } from "./lib/index";
 import { Door } from "./cafe/House.ts";
 import { parseObject, type ParsedObject } from "./schemas.ts";
 import Table from "./cafe/Table.ts";
 import Cafe, { Tables } from "./cafe/Cafe.ts";
+import Human from "./Human.ts";
 
 export default class Play extends Scene {
   private tilemap: Tilemap;
   public obstacles: Obstacle[];
   public parkGrid: (0 | 1)[][];
   private skaters!: Skater[];
+  private humans: Human[];
   public tileSize: number;
   public benches: Bench[];
   private staticImages: StaticImage[];
+
   public cafe!: Cafe;
   public tables!: Tables; // Is set in init()
 
@@ -42,6 +46,7 @@ export default class Play extends Scene {
     this.skaters = [];
     this.benches = [];
     this.staticImages = [];
+    this.humans = [];
   }
 
   private loadSkaterSprite(
@@ -94,6 +99,8 @@ export default class Play extends Scene {
 
     this.loadSprite("door-cafe", doorCafeJSON as AsepriteJSON);
 
+    this.loadSprite("foods", foodsCafeJSON as AsepriteJSON);
+
     // This is a transparent image for a "flat" obstacle... just bc static images require an image
 
     this.art!.images.add(
@@ -126,7 +133,12 @@ export default class Play extends Scene {
     this.addObject(tilemap);
 
     for (const t of this.tilemap.attributes) {
-      if (t.attributes.hasOwnProperty("isSkateGround")) {
+      const isSkateGround =  t.attributes.hasOwnProperty("isSkateGround") &&  t.attributes.isSkateGround === true;
+      const isWalkable =  t.attributes.hasOwnProperty("isWalkable") &&  t.attributes.isWalkable === true;
+      if (
+      isSkateGround || isWalkable
+      ) {
+        
         this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] = 0;
       }
     }
@@ -155,11 +167,14 @@ export default class Play extends Scene {
 
     await this.art!.images.load();
 
-    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "spike", 10, "flat"));
-    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "jasmine", 10, "bowl"));
-    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "bobby", 10, "bowl"));
-    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "kim", 10, "bench"));
-    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "rail"));
+    this.pushHuman(new Human(this, { x: 0, y: 0 }, "spike", "fika"));
+    
+    this.pushHuman(new Human(this, { x: 0, y: 0 }, "spike", "work-at-cafe"));
+
+    // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "jasmine", 10, "bowl"));
+    // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "bobby", 10, "bowl"));
+    // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "kim", 10, "bench"));
+    // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "rail"));
   }
 
   private createObject(o: ParsedObject): ArtObject {
@@ -193,7 +208,7 @@ export default class Play extends Scene {
             y: o.pos.y + o.data.doorY,
           },
           16,
-          16,
+          32,
           "door-cafe",
         );
 
@@ -206,38 +221,47 @@ export default class Play extends Scene {
         return this.cafe;
 
       case "table":
-        const table = new Table(this, o.pos, o.width, o.height, o.name, [
-          {
-            pos: {
-              x: o.pos.x,
-              y: o.pos.y,
+        const table = new Table(
+          this,
+          o.pos,
+          o.width,
+          o.height,
+          o.name,
+          [
+            {
+              pos: {
+                x: o.pos.x + this.tileSize,
+                y: o.pos.y,
+              },
+              direction: "n",
             },
-            direction: "n",
-          },
-          {
-            pos: {
-              x: o.pos.x,
-              y: o.pos.y + o.width - this.art!.tileSize,
+            {
+              pos: {
+                x: o.pos.x + this.art!.tileSize * 2,
+                y: o.pos.y + this.art!.tileSize * 2,
+              },
+              direction: "e",
             },
-            direction: "e",
-          },
-          {
-            pos: {
-              x: o.pos.x + o.width - this.art!.tileSize,
-              y: o.pos.y + o.height - this.art!.tileSize,
+            {
+              pos: {
+                x: o.pos.x + this.art!.tileSize,
+                y: o.pos.y + o.height - this.art!.tileSize,
+              },
+              direction: "s",
             },
-            direction: "s",
-          },
-          {
-            pos: {
-              x: o.pos.x,
-              y: o.pos.y + o.height - this.art!.tileSize,
+            {
+              pos: {
+                x: o.pos.x,
+                y: o.pos.y + this.art!.tileSize,
+              },
+              direction: "w",
             },
-            direction: "w",
-          },
-        ], ["cafe"]);
+          ],
+          ["cafe"],
+        );
 
         this.addObject(table);
+
         return table;
       case "vending-machine": {
         const staticImage = new StaticImage(
@@ -281,19 +305,30 @@ export default class Play extends Scene {
     }
   }
 
+  pushHuman(human: Human) {
+    let cell = getRandomFreeCell(this.parkGrid);
+    if (cell === null) return;
+
+    cell = {col: Math.floor(this.tilemap.cols / 2) - 4, row: Math.floor(this.tilemap.rows / 2) };
+
+    human.pos = cellToPos(cell, this.tileSize);
+    human.init();
+    this.humans.push(human);
+    this.addObject(human);
+    
+  }
+
   pushSkater(skater: Skater) {
     const cell = getRandomFreeCell(this.parkGrid);
     if (cell === null) return;
     skater.pos = cellToPos(cell, this.tileSize);
+    skater.init();
     this.skaters.push(skater);
     this.addObject(skater);
   }
 
   update(dt: number) {
-    for (const s of this.skaters) {
-      s.update(dt);
-    }
-
+    super.update(dt)
     // Sort objects
 
     const renderSortCompValue = new Map<number, number>();
@@ -301,7 +336,6 @@ export default class Play extends Scene {
     for (const s of this.skaters) {
       const obstacle = this.obstacles.find((o2) => o2.id === s.obstacle);
 
-      // Skater is currently at obstacle ramp and climbing it from behind so we need to increase the 'y' value to sort on so that it will be rendered first, i.e. the ramp will be rendered on top of this skater.
       if (obstacle !== undefined) {
         if (obstacle.type === "bowl") {
           renderSortCompValue.set(s.id, obstacle.pos.y + 1);
@@ -319,6 +353,36 @@ export default class Play extends Scene {
       renderSortCompValue.set(s.id, s.pos.y);
     }
 
+    for (const h of this.humans) {
+      if (
+        h.action === "fika" &&
+        h.isSitting()
+      ) {
+
+        const chair = this.objects.find(
+          (o) =>
+            o instanceof StaticImage &&
+            o.image.includes("chair") &&
+            o.pos.x === h.pos.x,
+        );
+
+        if (chair === undefined) throw new Error("Chair not found");
+
+        // Sitting on the far side of a table should render behind it.
+        if (h.direction === "n") {
+           renderSortCompValue.set(h.id, h.pos.y - 1);
+        
+        } else {
+          renderSortCompValue.set(h.id, h.pos.y +1);
+        }
+        if (chair === undefined) throw new Error("Chair not found");
+
+
+      }
+
+      renderSortCompValue.set(h.id, h.pos.y);
+    }
+
     for (const o of this.staticImages) {
       renderSortCompValue.set(o.id, o.pos.y);
     }
@@ -331,10 +395,18 @@ export default class Play extends Scene {
       renderSortCompValue.set(o.id, o.pos.y);
     }
 
+    for (const t of this.tables.getTables()) {
+      renderSortCompValue.set(t.id, t.pos.y);
+    }
+
+    renderSortCompValue.set(this.cafe.id, this.cafe.pos.y);
+    renderSortCompValue.set(this.cafe.door.id, this.cafe.door.pos.y + 1);
+
     this.sortObjects((s1, s2) => {
       const v1 = renderSortCompValue.get(s1.id);
       const v2 = renderSortCompValue.get(s2.id);
       if (v1 === undefined || v2 === undefined) {
+        console.log(s1, s2);
         console.log("Render sort error");
         return 0;
       }
@@ -342,4 +414,5 @@ export default class Play extends Scene {
       return v1 - v2;
     });
   }
+
 }

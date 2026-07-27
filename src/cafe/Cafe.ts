@@ -60,6 +60,10 @@ export class Tables {
     this.tables = tables.map((t) => ({ table: t, isFree: true }));
   }
 
+  getTables() {
+    return this.tables.map(t => t.table);
+  }
+
   hasAvailableTables(restaurant: string): boolean {
     return (
       this.tables.find(

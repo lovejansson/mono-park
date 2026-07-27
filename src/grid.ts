@@ -1,5 +1,5 @@
 import type { Cell } from "./lib/types";
-import { isSameCell, randomEl } from "./utils.ts";
+import { isSameCell, randomEl } from "./lib";
 
 export function createGrid(
   rows: number,

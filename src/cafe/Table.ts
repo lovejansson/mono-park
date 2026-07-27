@@ -2,7 +2,7 @@ import { StaticImage, type Direction, type Vec2 } from "../lib";
 import type Play from "../Play";
 
 export default class Table extends StaticImage {
-seats: { pos: Vec2; direction: Direction }[];
+  seats: { pos: Vec2; direction: Direction }[];
   restaurants: string[];
 
   constructor(
@@ -28,57 +28,38 @@ seats: { pos: Vec2; direction: Direction }[];
     seat: { pos: Vec2; direction: Direction },
     tileSize: number,
   ): Vec2 {
-    if (this.image === "round-table") {
-      switch (seat.direction) {
-        case "w": {
-          return {
-            x: seat.pos.x,
-            y: seat.pos.y,
-          };
-        }
-        case "e": {
-          return {
-            x: seat.pos.x,
-            y: seat.pos.y,
-          };
-        }
-        default:
-          throw new Error(`Unsupported seat direction: ${seat.direction}`);
+    switch (seat.direction) {
+      case "n":
+      case "s": {
+        const useWestSide = currentPos.x < seat.pos.x;
+        return {
+          x: useWestSide
+            ? seat.pos.x - tileSize * 2
+            : seat.pos.x + tileSize * 2,
+          y: seat.pos.y,
+        };
       }
-    } else {
-      switch (seat.direction) {
-        case "n":
-        case "s": {
-          const useWestSide = currentPos.x < seat.pos.x;
-          return {
-            x: useWestSide
-              ? seat.pos.x - tileSize * 2
-              : seat.pos.x + tileSize * 2,
-            y: seat.pos.y,
-          };
-        }
-        case "w":
-        case "e": {
-          const useNorthSide = currentPos.y < seat.pos.y;
-          return {
-            x: seat.pos.x,
-            y: useNorthSide
-              ? seat.pos.y - tileSize * 2
-              : seat.pos.y + tileSize * 2,
-          };
-        }
-        default:
-          throw new Error(`Unsupported seat direction: ${seat.direction}`);
+      case "w":
+      case "e": {
+        const useNorthSide = currentPos.y < seat.pos.y;
+        return {
+          x: seat.pos.x,
+          y: useNorthSide
+            ? seat.pos.y - tileSize * 2
+            : seat.pos.y + tileSize * 2,
+        };
       }
+      default:
+        throw new Error(`Unsupported seat direction: ${seat.direction}`);
     }
   }
 
   getClosestCornerPos(currentPos: Vec2, tileSize: number): Vec2 {
-    if (this.image !== "round-table") {
-      throw new Error(
-        "Table.getClosestCornerPos is currently only implemented for round-table",
-      );
-    }
+    // if (this.image !== "round-table") {
+    //   throw new Error(
+    //     "Table.getClosestCornerPos is currently only implemented for round-table",
+    //   );
+    // }
 
     const corners = [
       { x: this.pos.x - tileSize, y: this.pos.y - tileSize },

@@ -1,6 +1,13 @@
 # Todo 
 
 
-ANIMERINGAR
-
-Animeringar är "root animations", dvs, position uppdateras alltid i och med att frame uppdateras, det är frame update som styr position updates, det är för att det såg bättre ut, speciellt för skate animering är det bra.
+- create fika items
+- make sure fika items looks good on the table when rendered!
+- Movements of ducks 
+- Drawing ducks 
+- Playing ball state 
+- Drawing all sprites 
+- Handling path movement collisions 
+- Creating a complete day for 1 group including syncing how they all visit the cafe together 
+- Feeding ducks 
+- Creating a complete day for all the groups 

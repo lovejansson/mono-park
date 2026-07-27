@@ -6,26 +6,21 @@ import {
   type Vec2,
 } from "../lib";
 import type Play from "../Play";
-import Timer, {
-  ONE_MINUTE,
-  TEN_MINUTES,
-  TEN_SECONDS,
-  THIRTY_SECONDS,
-} from "../Timer";
+import Timer, { ONE_MINUTE, TEN_SECONDS } from "../Timer";
 import { GoTo, type CommonUpdatable } from "../commonActions";
 import type Cafe from "./Cafe";
 import { createAction, type Updatable } from "../actions";
 import type { OrderEvent } from "./orders";
+import { getPosDiff, isSamePos } from "../lib";
+
 import {
   getGoalPositionWithDirectionAwareRounding,
   getOppositeDirection,
-  getPosDiff,
   getStartPositionWithDirectionAwareRounding,
-  isSamePos,
-  randomEl,
 } from "../utils";
-import { getFoodOverlay } from "../Human";
+
 import type Table from "./Table";
+import { getFoodOverlay } from "../Human";
 
 const DOOR_VISIBILITY_TRAVEL_RATIO = 0.5;
 
@@ -106,7 +101,7 @@ class PlaceOrder implements CafeUpdatable {
   private human: Human;
   private animationSeq: AnimationSequence | null;
   private placingOrderTimer: Timer | null;
-  private restaurant: Cafe;
+  private cafe: Cafe;
 
   private step: PlaceOrderStep;
   private table: Table;
@@ -114,10 +109,8 @@ class PlaceOrder implements CafeUpdatable {
 
   constructor(human: Human, restaurant: Cafe, table: Table) {
     this.human = human;
-    this.restaurant = restaurant;
+    this.cafe = restaurant;
     this.table = table;
-
-    // Play animations to walk inside of restaurant assuming standing outside of it
     this.animationSeq = null;
     this.placingOrderTimer = null;
 
@@ -141,7 +134,7 @@ class PlaceOrder implements CafeUpdatable {
             {
               anim: `walk-${this.human.direction}`,
               transition: {
-                dx: this.restaurant.getArrivePos().x - this.human.pos.x,
+                dx: this.cafe.getArrivePos().x - this.human.pos.x,
                 dy: 0,
               },
               type: TransitionType.Distance,
@@ -159,9 +152,9 @@ class PlaceOrder implements CafeUpdatable {
       case PlaceOrderStep.OPEN_DOOR_TO_ENTER:
         this.human.direction = "n";
         this.human.animations.play("idle-stand-n");
-        if (this.restaurant.isDoorClosed()) {
-          this.restaurant.openDoor();
-        } else if (this.restaurant.isDoorOpen()) {
+        if (this.cafe.isDoorClosed()) {
+          this.cafe.openDoor();
+        } else if (this.cafe.isDoorOpen()) {
           this.step = PlaceOrderStep.WALK_INSIDE;
         }
 
@@ -171,6 +164,7 @@ class PlaceOrder implements CafeUpdatable {
           const doorTravel = getDoorVisibilityTravel(
             this.human.scene.art!.tileSize,
           );
+
           this.animationSeq = new AnimationSequence(this.human, [
             {
               anim: "walk-n",
@@ -191,7 +185,7 @@ class PlaceOrder implements CafeUpdatable {
           if (playing !== null) {
             this.human.animations.stop(playing);
           }
-          this.human.setVisible(false);
+
           this.animationSeq = null;
           this.step = PlaceOrderStep.CLOSE_DOOR_AFTER_ENTER;
         } else {
@@ -200,9 +194,9 @@ class PlaceOrder implements CafeUpdatable {
 
         break;
       case PlaceOrderStep.CLOSE_DOOR_AFTER_ENTER:
-        if (this.restaurant.isDoorOpen()) {
-          this.restaurant.closeDoor();
-        } else if (this.restaurant.isDoorClosed()) {
+        if (this.cafe.isDoorOpen()) {
+          this.cafe.closeDoor();
+        } else if (this.cafe.isDoorClosed()) {
           this.step = PlaceOrderStep.WAIT_FOR_ORDERING;
         }
         break;
@@ -215,15 +209,15 @@ class PlaceOrder implements CafeUpdatable {
         }
         break;
       case PlaceOrderStep.OPEN_DOOR_TO_EXIT:
-        if (this.restaurant.isDoorClosed()) {
-          this.restaurant.openDoor();
-        } else if (this.restaurant.isDoorOpen()) {
+        if (this.cafe.isDoorClosed()) {
+          this.cafe.openDoor();
+        } else if (this.cafe.isDoorOpen()) {
           this.step = PlaceOrderStep.WALK_OUTSIDE;
         }
         break;
       case PlaceOrderStep.WALK_OUTSIDE:
         if (this.animationSeq === null) {
-          const arrivePos = this.restaurant.getArrivePos();
+          const arrivePos = this.cafe.getArrivePos();
           const doorTravel = getDoorVisibilityTravel(
             this.human.scene.art!.tileSize,
           );
@@ -231,7 +225,7 @@ class PlaceOrder implements CafeUpdatable {
             x: arrivePos.x,
             y: arrivePos.y - doorTravel,
           };
-          this.human.setVisible(true);
+
           this.animationSeq = new AnimationSequence(this.human, [
             {
               anim: "fade-s",
@@ -248,7 +242,7 @@ class PlaceOrder implements CafeUpdatable {
           this.human.direction = "s";
           this.animationSeq.start();
         } else if (this.animationSeq.isFinished) {
-          this.human.pos = this.restaurant.getArrivePos();
+          this.human.pos = this.cafe.getArrivePos();
           this.step = PlaceOrderStep.CLOSE_DOOR_AFTER_EXIT;
           this.human.animations.play(`idle-stand-s`);
 
@@ -258,14 +252,14 @@ class PlaceOrder implements CafeUpdatable {
         }
         break;
       case PlaceOrderStep.CLOSE_DOOR_AFTER_EXIT:
-        if (this.restaurant.isDoorOpen()) {
-          this.restaurant.closeDoor();
-        } else if (this.restaurant.isDoorClosed()) {
+        if (this.cafe.isDoorOpen()) {
+          this.cafe.closeDoor();
+        } else if (this.cafe.isDoorClosed()) {
           if (this.hasDoorCenterDiff) {
             this.step = PlaceOrderStep.WALK_FROM_CENTER;
           } else {
             setTimeout(() => {
-              this.restaurant.placeOrder(this.table);
+              this.cafe.placeOrder(this.table);
             }, TEN_SECONDS);
             this.step = PlaceOrderStep.DONE;
           }
@@ -278,7 +272,7 @@ class PlaceOrder implements CafeUpdatable {
             this.table.pos,
             this.human.scene.art!.tileSize,
           );
-          console.log(endPos);
+
           const xDiff = endPos.x - this.human.pos.x;
 
           if (xDiff > 0) {
@@ -300,9 +294,10 @@ class PlaceOrder implements CafeUpdatable {
           this.animationSeq.start();
         } else if (this.animationSeq.isFinished) {
           this.animationSeq = null;
+
           setTimeout(() => {
-            this.restaurant.placeOrder(this.table);
-          }, ONE_MINUTE);
+            this.cafe.placeOrder(this.table);
+          }, TEN_SECONDS);
           this.step = PlaceOrderStep.DONE;
         } else {
           this.animationSeq.update(dt);
@@ -319,22 +314,22 @@ class PlaceOrder implements CafeUpdatable {
 }
 
 export class WorkAtCafe implements CafeUpdatable {
-  static TAG: "work-restaurant" = "work-restaurant";
-  readonly tag: "work-restaurant" = WorkAtCafe.TAG;
+  static TAG: "work-at-cafe" = "work-at-cafe";
+  readonly tag: "work-at-cafe" = WorkAtCafe.TAG;
 
   private human: Human;
-  private restaurant: Cafe;
+  private cafe: Cafe;
   private currAction: CafeUpdatable | null;
 
-  constructor(human: Human) {
+  constructor(human: Human, cafe: Cafe) {
     this.human = human;
-    this.restaurant = (human.scene as Play).restaurants[0];
+    this.cafe = cafe;
     this.currAction = null;
   }
 
   init() {
     this.transitionToAction(
-      new WaitForOrder(this.human, this.restaurant),
+      new WaitForOrder(this.human, this.cafe),
       "Waiter waiting for orders",
     );
   }
@@ -350,7 +345,7 @@ export class WorkAtCafe implements CafeUpdatable {
       case WaitForOrder.TAG: {
         const order = (this.currAction as WaitForOrder).getFoundOrder();
         this.transitionToAction(
-          new GiveOrder(this.human, this.restaurant, order),
+          new GiveOrder(this.human, this.cafe, order),
           "Waiter delivering order to table",
           order.tableId,
         );
@@ -358,7 +353,7 @@ export class WorkAtCafe implements CafeUpdatable {
       }
       case GiveOrder.TAG:
         this.transitionToAction(
-          new WaitForOrder(this.human, this.restaurant),
+          new WaitForOrder(this.human, this.cafe),
           "Waiter waiting for next order",
         );
         break;
@@ -374,18 +369,18 @@ export class WorkAtCafe implements CafeUpdatable {
     reason?: string,
     targetID?: number,
   ) {
-    if (this.currAction !== null) {
-      this.human.utility.popAction();
-    }
+    // if (this.currAction !== null) {
+    //   this.human.utility.popAction();
+    // }
 
     this.currAction = nextAction;
 
-    this.human.utility.pushAction({
-      currentAction: this.currAction.tag,
-      parentAction: this.tag,
-      reason: reason ?? null,
-      targetId: targetID ?? null,
-    });
+    // this.human.utility.pushAction({
+    //   currentAction: this.currAction.tag,
+    //   parentAction: this.tag,
+    //   reason: reason ?? null,
+    //   targetId: targetID ?? null,
+    // });
 
     this.currAction.init();
   }
@@ -396,18 +391,17 @@ class WaitForOrder implements CafeUpdatable {
   readonly tag: "wait-for-order" = WaitForOrder.TAG;
 
   private human: Human;
-  private restaurant: Cafe;
+  private cafe: Cafe;
   private foundOrder: OrderEvent | null;
 
   constructor(human: Human, restaurant: Cafe) {
     this.human = human;
-
-    this.restaurant = restaurant;
+    this.cafe = restaurant;
     this.foundOrder = null;
   }
 
   init() {
-    this.human.setVisible(false);
+    // this.human.setVisible(false);
   }
 
   getFoundOrder(): OrderEvent {
@@ -417,10 +411,9 @@ class WaitForOrder implements CafeUpdatable {
 
   update(_: number): void {
     if (this.foundOrder !== null) return;
-    const order = this.restaurant.getOrder();
-    if (order !== null) {
-      this.human.setVisible(true);
 
+    const order = this.cafe.getOrder();
+    if (order !== null) {
       this.foundOrder = order;
     }
   }
@@ -520,6 +513,7 @@ class GiveOrder implements CafeUpdatable {
             y: arrivePos.y - doorTravel,
           };
           this.human.direction = "s";
+
           this.animationSeq = new AnimationSequence(this.human, [
             {
               anim: "fade-s",
@@ -629,6 +623,7 @@ class GiveOrder implements CafeUpdatable {
 
       case GiveOrderStep.SERVE_AT_TABLE:
         if (!this.hasServed) {
+          this.human.animations.play("idle-stand-" + this.human.direction);
           this.restaurant.serveOrder(this.order.tableId);
           setTimeout(() => {
             this.step = GiveOrderStep.WALK_TO_ROUNDED_ARRIVE;
@@ -729,7 +724,7 @@ class GiveOrder implements CafeUpdatable {
           if (playing !== null) {
             this.human.animations.stop(playing);
           }
-          this.human.setVisible(false);
+          // this.human.setVisible(false);
           this.animationSeq = null;
           this.step = GiveOrderStep.CLOSE_DOOR_AFTER_ENTER;
         } else {
@@ -800,6 +795,7 @@ class Eat implements CafeUpdatable {
   init() {}
 
   update(_: number): void {
+    console.log("EATING????");
     if (!this.human.animations.isPlaying(`eat-${this.human.direction}`)) {
       this.human.animations.play(`eat-${this.human.direction}`, {
         overlay: getFoodOverlay(this.human.direction, "pizza"),
@@ -884,18 +880,13 @@ export default class Fika implements CafeUpdatable {
         if (this.hasPlacedOrder) {
           this.transitionToAction(
             createAction(SitDown.TAG, this.human, this.seat),
-            `Human will sit down at table at restaurant ${this.cafe.image}`,
+            "Human will sit down at table at café",
             this.table.id,
           );
         } else {
           this.transitionToAction(
-            createAction(
-              PlaceOrder.TAG,
-              this.human,
-              this.cafe,
-              this.table,
-            ),
-            `Human will go inside ${this.cafe.image} and place order`,
+            createAction(PlaceOrder.TAG, this.human, this.cafe, this.table),
+            "Human will go inside the café and place order",
             this.cafe.id,
           );
         }
@@ -910,7 +901,7 @@ export default class Fika implements CafeUpdatable {
 
         this.transitionToAction(
           createAction(GoTo.TAG, this.human, pos),
-          `Human will walk to table at restaurant ${this.cafe.image}`,
+          "Human will walk to table at café",
           this.table.id,
         );
 
@@ -920,30 +911,24 @@ export default class Fika implements CafeUpdatable {
 
       case SitDown.TAG:
         this.transitionToAction(
-          createAction(
-            ReceiveOrder.TAG,
-            this.human,
-            this.cafe,
-            this.table.id,
-          ),
-          `Human will wait for order at restaurant ${this.cafe.image}`,
+          createAction(ReceiveOrder.TAG, this.human, this.cafe, this.table.id),
+          "Human will wait for order at café",
           this.table.id,
         );
         break;
       case ReceiveOrder.TAG:
         this.transitionToAction(
           createAction(Eat.TAG, this.human, ONE_MINUTE),
-          `Human will eat at ${this.cafe.image}`,
+          "Human will eat at at café",
           this.table.id,
         );
         break;
       case Eat.TAG:
         this.transitionToAction(
           createAction(Leave.TAG, this.human),
-          `Human will leave the restaurant ${this.cafe.image}`,
+          "Human will leave the  café",
           this.cafe.id,
         );
-        // When eat is complete the whole state is complete, no further action
         break;
     }
   }
@@ -959,28 +944,28 @@ export default class Fika implements CafeUpdatable {
     targetID?: number,
   ) {
     if (this.currAction !== null) {
-      this.human.utility.popAction();
+      // this.human.utility.popAction();
     }
 
     this.currAction = nextAction;
 
-    this.human.utility.pushAction({
-      currentAction: this.currAction.tag,
-      parentAction: this.tag,
-      reason: reason ?? null,
-      targetId: targetID ?? null,
-    });
+    // this.human.utility.pushAction({
+    //   currentAction: this.currAction.tag,
+    //   parentAction: this.tag,
+    //   reason: reason ?? null,
+    //   targetId: targetID ?? null,
+    // });
 
     this.currAction.init();
   }
 }
 
-interface CafeUpdatable extends Updatable {
+export interface CafeUpdatable extends Updatable {
   readonly tag: FikaActionTag;
 }
 
 const spec = {
-  "fika": { ctor: Fika },
+  fika: { ctor: Fika },
   "work-at-cafe": { ctor: WorkAtCafe },
   "sit-down": { ctor: SitDown },
   order: { ctor: PlaceOrder },

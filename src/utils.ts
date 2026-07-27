@@ -1,68 +1,62 @@
-import type { Cell, Vec2 } from "./lib/types";
-
-export function isSamePos(pos1: Vec2, pos2: Vec2) {
-  return pos1.x === pos2.x && pos1.y === pos2.y;
-}
-
-export function isSameCell(c1: Cell, c2: Cell) {
-  return c1.col === c2.col && c1.row === c2.row;
-}
-
-export function posToCell(pos: Vec2, tileSize: number) {
-  return {
-    row: pos.y / tileSize,
-    col: pos.x / tileSize,
-  };
-}
-
-export function cellToPos(cell: Cell, tileSize: number) {
-  return {
-    y: cell.row * tileSize,
-    x: cell.col * tileSize,
-  };
-}
-
-export function dist(pos: Vec2, pos2: Vec2): Vec2 {
-  return {x: pos.x - pos2.x, y: pos.y - pos2.y};
-}
-export function normalize(pos: Vec2): Vec2 {
-  return {x: pos.x / Math.abs(pos.x), y: pos.y - Math.abs(pos.y)};
-}
+import type {  Direction, Vec2 } from "./lib/types";
 
 
-export function randomEl<T>(arr: T[]): T | null {
-  return arr[Math.floor(Math.random() * arr.length)] ?? null;
-}
-
-export function randomIndex<T>(arr: T[]): number {
-  if (arr.length === 0) return -1;
-
-  return Math.floor(arr.length * Math.random());
-}
-
-export function randomInt(min: number, max: number) {
-  return Math.round(Math.random() * (max - min)) + min;
-}
-
-export function randomOdd(max: number) {
-  let num = Math.round(Math.random() * max);
-
-  if (num % 2 === 0) {
-    if (num === 0) num++;
-    else num--;
+export function getOppositeDirection(direction: Direction): Direction {
+  switch (direction) {
+    case "n":
+      return "s";
+    case "ne":
+      return "sw";
+    case "e":
+      return "w";
+    case "se":
+      return "nw";
+    case "s":
+      return "n";
+    case "sw":
+      return "ne";
+    case "w":
+      return "e";
+    case "nw":
+      return "se";
   }
-
-  return num;
 }
 
-export function getPosDiff(pos1: Vec2, pos2: Vec2): Vec2 {
-  return { x: pos1.x - pos2.x, y: pos1.y - pos2.y };
+export function getGoalPositionWithDirectionAwareRounding(
+  currentPos: Vec2,
+  goalPos: Vec2,
+  tileSize: number,
+): Vec2 {
+  const dirX = goalPos.x - currentPos.x;
+  const dirY = goalPos.y - currentPos.y;
+
+  let col = goalPos.x / tileSize;
+  let row = goalPos.y / tileSize;
+
+  col =
+    dirX > 0 ? Math.floor(col) : dirX < 0 ? Math.ceil(col) : Math.round(col);
+  row =
+    dirY > 0 ? Math.floor(row) : dirY < 0 ? Math.ceil(row) : Math.round(row);
+
+  return { x: col * tileSize, y: row * tileSize };
 }
 
-export function randomBool() {
-  return Math.random() > 0.5;
-}
+export function getStartPositionWithDirectionAwareRounding(
+  currentPos: Vec2,
+  goalPos: Vec2,
+  tileSize: number,
+): Vec2 {
+  const dirX = goalPos.x - currentPos.x;
+  const dirY = goalPos.y - currentPos.y;
 
-export function manhattan(a: Cell, b: Cell): number {
-  return Math.abs(b.row - a.row) + Math.abs(b.col - a.col);
+  let col = currentPos.x / tileSize;
+  let row = currentPos.y / tileSize;
+
+  // Round based on approach direction
+  col =
+    dirX > 0 ? Math.ceil(col) : dirX < 0 ? Math.floor(col) : Math.round(col);
+  row =
+    dirY > 0 ? Math.ceil(row) : dirY < 0 ? Math.floor(row) : Math.round(row);
+
+  return { x: col * tileSize, y: row * tileSize };
 }

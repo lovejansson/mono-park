@@ -47,6 +47,7 @@ export class Door extends Sprite {
   }
 
   update(_: number): void {
+  
     switch (this.state) {
       case DoorState.OPENING:
         if (!this.animations.isPlaying(ANIM_OPENING)) {
@@ -79,7 +80,7 @@ export class Door extends Sprite {
 }
 
 export default class House extends StaticImage {
-  private door: Door;
+  public door: Door;
 
   constructor(
     scene: Play,

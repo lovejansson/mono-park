@@ -6,9 +6,8 @@ import {
   randomInt,
   cellToPos,
   posToCell,
-  isSamePos,
-  isSameCell,
-} from "../utils.ts";
+  isSamePos
+} from "../lib";
 import { Path } from "../lib";
 import Timer, { FIVE_MINUTES, TEN_MINUTES } from "../Timer.ts";
 import Obstacle, {
