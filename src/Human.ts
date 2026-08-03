@@ -1,8 +1,9 @@
 import type { ActionTag } from "./actions";
-import Fika, { WorkAtCafe, type CafeUpdatable } from "./cafe/Fika";
+import type { PlayBallUpdatable } from "./ball/PlayBall";
+import PlayBall from "./ball/PlayBall";
 // import Cafe from "./cafe/Cafe";
 // import Fika from "./cafe/Fika";
-import { Sprite } from "./lib";
+import { posToCell, Sprite } from "./lib";
 import type { OverlayOptions } from "./lib";
 import type { Direction, Vec2 } from "./lib/types";
 import type Play from "./Play";
@@ -19,9 +20,10 @@ export default class Human extends Sprite {
   tileSize: number;
   action: ActionTag | null;
   initAction: ActionTag;
-  fika: CafeUpdatable;
+  playBall!: PlayBallUpdatable;
 
   constructor(scene: Play, pos: Vec2, name: string, initAction: ActionTag) {
+
     super(scene, pos, 16, 32, "s");
     this.name = name;
     this.tileSize = scene.art!.tileSize;
@@ -29,19 +31,20 @@ export default class Human extends Sprite {
     this.initAction = initAction;
     this.drawOffset.y = -this.tileSize;
 
-    if (initAction === "fika") {
-      this.fika = new Fika(this, scene.cafe);
-    } else {
-          this.fika = new WorkAtCafe(this, scene.cafe);
-    }
   }
 
   init(): void {
+  
     this.animations.registerSpritesheet("foods");
+
+    this.animations.registerSpritesheet(`${this.name}-baller`);
 
     this.animations.registerSpritesheet(`${this.name}-base`, {
       defaults: REPEAT_DEFAULTS,
-    });
+    })
+    
+
+    this.animations.play("idle-stand-" + this.direction);
 
     this.animations.onFrameChange = (anim: string) => {
       const updateType = AnimationPositionUpdates[anim];
@@ -54,6 +57,7 @@ export default class Human extends Sprite {
             this.vel.y = 0;
             this.vel.x = 0;
           } else if (anim.includes("walk")) {
+
             switch (this.direction) {
               case "n":
                 this.vel.y = -Human.WALK_SPEED;
@@ -72,18 +76,23 @@ export default class Human extends Sprite {
                 this.vel.y = 0;
                 break;
             }
+                      this.pos.x += this.vel.x;
+          this.pos.y += this.vel.y;
           } else {
             throw new Error("Animation " + anim + " not found!");
           }
-
-          this.pos.x += this.vel.x;
-          this.pos.y += this.vel.y;
-
           break;
       }
     };
 
-    this.fika.init();
+    const ballGame = (this.scene as Play).getBallGame();
+    const myPlayerArea = ballGame.getPlayerArea(this.id);
+    this.direction = myPlayerArea.direction;
+   
+
+    this.playBall = new PlayBall(this,( this.scene as Play).getBallGame(), myPlayerArea);
+    this.playBall.init();
+
 
     // Useful for debugging
     // this.animations.onLoop = (anim: string, loopCount: number) => {
@@ -96,7 +105,7 @@ export default class Human extends Sprite {
   }
 
   update(dt: number): void {
-    this.fika.update(dt);
+    this.playBall.update(dt);
   }
 
   isSitting(): boolean {

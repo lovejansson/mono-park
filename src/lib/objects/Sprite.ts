@@ -10,7 +10,6 @@ type PathState = {
 };
 
 export default abstract class Sprite extends ArtObject {
-  pos: Vec2;
   vel: Vec2;
   width: number;
   height: number;
@@ -29,8 +28,7 @@ export default abstract class Sprite extends ArtObject {
     height: number,
     direction: Direction,
   ) {
-    super(scene);
-    this.pos = pos;
+    super(scene, pos);
     this.vel = { x: 0, y: 0 };
     this.width = width;
     this.height = height;

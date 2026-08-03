@@ -1,6 +1,5 @@
 # Todo 
 
-
 - create fika items
 - make sure fika items looks good on the table when rendered!
 - Movements of ducks 

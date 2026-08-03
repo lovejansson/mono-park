@@ -1,6 +1,5 @@
 import { type Cell, type Vec2 } from "./types";
 
-
 export function isSamePos(pos1: Vec2, pos2: Vec2) {
   return pos1.x === pos2.x && pos1.y === pos2.y;
 }
@@ -24,10 +23,10 @@ export function cellToPos(cell: Cell, tileSize: number) {
 }
 
 export function dist(pos: Vec2, pos2: Vec2): Vec2 {
-  return {x: pos.x - pos2.x, y: pos.y - pos2.y};
+  return { x: pos.x - pos2.x, y: pos.y - pos2.y };
 }
 export function normalize(pos: Vec2): Vec2 {
-  return {x: pos.x / Math.abs(pos.x), y: pos.y - Math.abs(pos.y)};
+  return { x: pos.x / Math.abs(pos.x), y: pos.y - Math.abs(pos.y) };
 }
 
 export function randomEl<T>(arr: T[]): T | null {
@@ -65,4 +64,17 @@ export function randomBool() {
 
 export function manhattan(a: Cell, b: Cell): number {
   return Math.abs(b.row - a.row) + Math.abs(b.col - a.col);
+}
+
+export function euclidean(pos1: Vec2, pos2: Vec2): number {
+  return Math.round(Math.sqrt(Math.pow(pos1.x - pos2.x, 2) + Math.pow(pos1.y - pos2.y, 2)));
+}
+
+export function easeOut(x: number, strength: number = 2) {
+  return 1 - Math.pow((1-x), strength);
+}
+
+export function roundToDecimal(n: number, d: number): number {
+  return Math.round(n * Math.pow(10, d)) / Math.pow(10, d);
+
 }

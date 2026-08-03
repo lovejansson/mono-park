@@ -29,11 +29,6 @@ export default class Path {
     this.sprite = sprite;
     this.goalCell = posToCell(goal, sprite.scene.art!.tileSize);
 
-    console.log(
-      "STARTING PATH",
-      posToCell(this.sprite.pos, this.sprite.scene.art!.tileSize),
-      this.goalCell,
-    );
 
     this.path = createPathAStar(
       posToCell(this.sprite.pos, this.sprite.scene.art!.tileSize),

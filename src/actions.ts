@@ -11,8 +11,16 @@ import {
   type CommonActionSpec,
   ActionConstructors as CommonConstructors,
 } from "./commonActions";
+import {
+  type PlayBallActionSpec,
+  ActionConstructors as PlayBallActionConstructors,
+} from "./ball/PlayBall";
 
-export type ActionSpec = FikaActionSpec & SkateActionSpec &  CommonActionSpec;
+export type ActionSpec = FikaActionSpec &
+  SkateActionSpec &
+  CommonActionSpec &
+  PlayBallActionSpec;
+
 export type ActionTag = keyof ActionSpec;
 
 export interface Updatable {
@@ -35,18 +43,19 @@ function getRegistry(): Registry {
       ...SkateConstructors,
       ...FikaConstructors,
       ...CommonConstructors,
+      ...PlayBallActionConstructors,
     } as Registry;
   }
   return registry;
 }
 
-export function createAction<K extends ActionTag>(
-  tag: K,
-  ...args: ActionSpec[K]["args"]
-): ActionSpec[K]["result"] {
+export function createAction<A extends ActionTag>(
+  tag: A,
+  ...args: ActionSpec[A]["args"]
+): ActionSpec[A]["result"] {
   const C = getRegistry()[tag] as Ctor<
-    ActionSpec[K]["args"],
-    ActionSpec[K]["result"]
+    ActionSpec[A]["args"],
+    ActionSpec[A]["result"]
   >;
   return new C(...args);
 }

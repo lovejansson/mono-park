@@ -1,4 +1,4 @@
-import { ArtObject, Scene, StaticImage } from "./lib/index.ts";
+import { ArtObject, Scene, StaticImage, type Direction } from "./lib/index.ts";
 import { type Tilemap } from "./types.ts";
 import { createGrid, getRandomFreeCell } from "./grid.ts";
 import Obstacle, { Bowl, Flat, Rail } from "./skate-park/Obstacle.ts";
@@ -9,13 +9,21 @@ import spikeSkaterJSON from "./assets/spritesheets/spike-skater.json";
 import spikeBaseJSON from "./assets/spritesheets/spike-base.json";
 import kimSkaterJSON from "./assets/spritesheets/kim-skater.json";
 import kimBaseJSON from "./assets/spritesheets/kim-base.json";
+import amandaBaseJSON from "./assets/spritesheets/amanda-base.json";
 import bobbySkaterJSON from "./assets/spritesheets/bobby-skater.json";
 import bobbyBaseJSON from "./assets/spritesheets/bobby-base.json";
 import loveSkaterJSON from "./assets/spritesheets/love-skater.json";
 import loveBaseJSON from "./assets/spritesheets/love-base.json";
-import jasmineSkaterJSON from "./assets/spritesheets/jasmine-skater.json";
-import jasmineBaseJSON from "./assets/spritesheets/jasmine-base.json";
+import jazzSkaterJSON from "./assets/spritesheets/jazz-skater.json";
+import jasmineBaseJSON from "./assets/spritesheets/jazz-base.json";
 import doorCafeJSON from "./assets/spritesheets/door-cafe.json";
+
+import amandaBallerJSON from "./assets/spritesheets/amanda-baller.json";
+import bobbyBallerJSON from "./assets/spritesheets/bobby-baller.json";
+import kimBallerJSON from "./assets/spritesheets/kim-baller.json";
+import spikeBallerJSON from "./assets/spritesheets/spike-baller.json";
+
+import ballJSON from "./assets/spritesheets/ball.json";
 import foodsCafeJSON from "./assets/spritesheets/foods.json";
 import { type AsepriteJSON } from "./lib/index";
 import { Door } from "./cafe/House.ts";
@@ -23,6 +31,7 @@ import { parseObject, type ParsedObject } from "./schemas.ts";
 import Table from "./cafe/Table.ts";
 import Cafe, { Tables } from "./cafe/Cafe.ts";
 import Human from "./Human.ts";
+import BallGame, { Ball, type PlayerArea } from "./ball/BallGame.ts";
 
 export default class Play extends Scene {
   private tilemap: Tilemap;
@@ -33,6 +42,7 @@ export default class Play extends Scene {
   public tileSize: number;
   public benches: Bench[];
   private staticImages: StaticImage[];
+  private ballGame!: BallGame;
 
   public cafe!: Cafe;
   public tables!: Tables; // Is set in init()
@@ -47,6 +57,14 @@ export default class Play extends Scene {
     this.benches = [];
     this.staticImages = [];
     this.humans = [];
+  }
+
+  getHuman(id: number): Human {
+    const human = this.humans.find((h) => h.id === id);
+
+    if (human === undefined) throw new Error("Human not found in scene.");
+
+    return human;
   }
 
   private loadSkaterSprite(
@@ -86,20 +104,41 @@ export default class Play extends Scene {
     );
 
     this.loadSkaterSprite(
-      "love",
+      "jazz",
       loveSkaterJSON as AsepriteJSON,
       loveBaseJSON as AsepriteJSON,
     );
 
     this.loadSkaterSprite(
-      "jasmine",
-      jasmineSkaterJSON as AsepriteJSON,
+      "jazz",
+      jazzSkaterJSON as AsepriteJSON,
       jasmineBaseJSON as AsepriteJSON,
     );
 
     this.loadSprite("door-cafe", doorCafeJSON as AsepriteJSON);
 
     this.loadSprite("foods", foodsCafeJSON as AsepriteJSON);
+
+    this.loadSprite("ball", ballJSON as AsepriteJSON);
+
+
+    this.loadSprite("amanda-base", amandaBaseJSON as AsepriteJSON);
+
+
+    
+    this.loadSprite("kim-baller", kimBallerJSON as AsepriteJSON);
+
+    
+    this.loadSprite("spike-baller", spikeBallerJSON as AsepriteJSON);
+
+    
+    this.loadSprite("amanda-baller", amandaBallerJSON as AsepriteJSON);
+
+
+    
+    this.loadSprite("bobby-baller", bobbyBallerJSON as AsepriteJSON);
+
+   
 
     // This is a transparent image for a "flat" obstacle... just bc static images require an image
 
@@ -132,16 +171,37 @@ export default class Play extends Scene {
     this.staticImages.push(tilemap);
     this.addObject(tilemap);
 
+    const playerAreas: PlayerArea[] = []
+
     for (const t of this.tilemap.attributes) {
-      const isSkateGround =  t.attributes.hasOwnProperty("isSkateGround") &&  t.attributes.isSkateGround === true;
-      const isWalkable =  t.attributes.hasOwnProperty("isWalkable") &&  t.attributes.isWalkable === true;
-      if (
-      isSkateGround || isWalkable
-      ) {
-        
+      const isSkateGround =
+        t.attributes.hasOwnProperty("isSkateGround") &&
+        t.attributes.isSkateGround === true;
+      const isWalkable =
+        t.attributes.hasOwnProperty("isWalkable") &&
+        t.attributes.isWalkable === true;
+      const isPlayerArea = t.attributes.hasOwnProperty("isPlayerArea") && t.attributes.isPlayerArea === true;
+
+      if (isSkateGround || isWalkable) {
         this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] = 0;
       }
+
+      if(isPlayerArea) {
+        const direction = t.attributes.playerAreaDirection;
+
+        if(direction === undefined) throw new Error("No direction for player area");
+
+        const playerArea = playerAreas.find(a => a.direction === direction);
+
+        if(playerArea) {
+          playerArea.positions.push({x: t.pos.x, y: t.pos.y});
+         
+        } else {
+          playerAreas.push({direction: direction as Direction, positions: [{x: t.pos.x, y: t.pos.y}] })
+        }
+      }
     }
+
 
     for (const o of this.tilemap.objects) {
       const parsedObj = parseObject(o);
@@ -167,14 +227,59 @@ export default class Play extends Scene {
 
     await this.art!.images.load();
 
-    this.pushHuman(new Human(this, { x: 0, y: 0 }, "spike", "fika"));
+    this.humans.push(new Human(this,  { x: 34 * this.art!.tileSize, y: 20 * this.art!.tileSize }, "spike", "play-ball"));
+
+    this.humans.push(
+      new Human(
+        this,
+        { x: 27 * this.art!.tileSize, y: 20 * this.art!.tileSize },
+        "bobby",
+        "play-ball",
+      ),
+    );
+
+     this.humans.push(new Human(this,  { x: 34 * this.art!.tileSize, y: 20 * this.art!.tileSize }, "amanda", "play-ball"));
+
+    this.humans.push(
+      new Human(
+        this,
+        { x: 27 * this.art!.tileSize, y: 20 * this.art!.tileSize },
+        "kim",
+        "play-ball",
+      ),
+    );
+
+    const ball = new Ball(this,  { x: 27 * this.art!.tileSize, y: 20 * this.art!.tileSize });
+
+    ball.init();
+
+    this.addObject(ball);
+
+
     
-    this.pushHuman(new Human(this, { x: 0, y: 0 }, "spike", "work-at-cafe"));
+
+
+    this.ballGame = new BallGame(
+      this,
+      ball,
+      this.humans[1].id,
+      this.humans.map((h) => h.id),
+      playerAreas
+    );
+
+    for (const h of this.humans) {
+      this.addObject(h);
+      h.init();
+    }
 
     // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "jasmine", 10, "bowl"));
     // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "bobby", 10, "bowl"));
     // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "kim", 10, "bench"));
     // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "rail"));
+  }
+
+  getBallGame(): BallGame {
+    return this.ballGame;
   }
 
   private createObject(o: ParsedObject): ArtObject {
@@ -309,13 +414,15 @@ export default class Play extends Scene {
     let cell = getRandomFreeCell(this.parkGrid);
     if (cell === null) return;
 
-    cell = {col: Math.floor(this.tilemap.cols / 2) - 4, row: Math.floor(this.tilemap.rows / 2) };
+    cell = {
+      col: Math.floor(this.tilemap.cols / 2) - 4,
+      row: Math.floor(this.tilemap.rows / 2),
+    };
 
     human.pos = cellToPos(cell, this.tileSize);
-    human.init();
+
     this.humans.push(human);
     this.addObject(human);
-    
   }
 
   pushSkater(skater: Skater) {
@@ -328,10 +435,16 @@ export default class Play extends Scene {
   }
 
   update(dt: number) {
-    super.update(dt)
+    super.update(dt);
+
+    this.ballGame.update(dt);
     // Sort objects
 
     const renderSortCompValue = new Map<number, number>();
+
+    for (const o of this.objects) {
+      renderSortCompValue.set(o.id, o.pos.y);
+    }
 
     for (const s of this.skaters) {
       const obstacle = this.obstacles.find((o2) => o2.id === s.obstacle);
@@ -354,11 +467,7 @@ export default class Play extends Scene {
     }
 
     for (const h of this.humans) {
-      if (
-        h.action === "fika" &&
-        h.isSitting()
-      ) {
-
+      if (h.action === "fika" && h.isSitting()) {
         const chair = this.objects.find(
           (o) =>
             o instanceof StaticImage &&
@@ -370,14 +479,11 @@ export default class Play extends Scene {
 
         // Sitting on the far side of a table should render behind it.
         if (h.direction === "n") {
-           renderSortCompValue.set(h.id, h.pos.y - 1);
-        
+          renderSortCompValue.set(h.id, h.pos.y - 1);
         } else {
-          renderSortCompValue.set(h.id, h.pos.y +1);
+          renderSortCompValue.set(h.id, h.pos.y + 1);
         }
         if (chair === undefined) throw new Error("Chair not found");
-
-
       }
 
       renderSortCompValue.set(h.id, h.pos.y);
@@ -405,6 +511,8 @@ export default class Play extends Scene {
     this.sortObjects((s1, s2) => {
       const v1 = renderSortCompValue.get(s1.id);
       const v2 = renderSortCompValue.get(s2.id);
+
+    
       if (v1 === undefined || v2 === undefined) {
         console.log(s1, s2);
         console.log("Render sort error");
@@ -414,5 +522,4 @@ export default class Play extends Scene {
       return v1 - v2;
     });
   }
-
 }

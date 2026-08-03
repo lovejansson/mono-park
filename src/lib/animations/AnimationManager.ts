@@ -317,6 +317,10 @@ export default class AnimationManager {
     return { x: frameCount * vel.x, y: frameCount * vel.y };
   }
 
+  hasPlayingAnimation(): boolean {
+    return this.currentAnimation !== null;
+  }
+
   isPlaying(name: string): boolean {
     return this.currentAnimation === name;
   }

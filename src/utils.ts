@@ -60,3 +60,4 @@ export function getStartPositionWithDirectionAwareRounding(
 
   return { x: col * tileSize, y: row * tileSize };
 }
+
