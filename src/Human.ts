@@ -1,9 +1,14 @@
-import type { ActionTag } from "./actions";
-import type { PlayBallUpdatable } from "./ball/PlayBall";
+import {
+  createAction,
+  type ActionSpec,
+  type ActionTag,
+  type Updatable,
+} from "./actions";
 import PlayBall from "./ball/PlayBall";
-// import Cafe from "./cafe/Cafe";
-// import Fika from "./cafe/Fika";
-import { posToCell, Sprite } from "./lib";
+import Fika from "./cafe/Fika";
+import {  TransitionActionTick } from "./commonActions";
+import type GroupActivityCoordinator from "./GroupActivityCoordinator";
+import {  Sprite } from "./lib";
 import type { OverlayOptions } from "./lib";
 import type { Direction, Vec2 } from "./lib/types";
 import type Play from "./Play";
@@ -19,30 +24,26 @@ export default class Human extends Sprite {
   name: string;
   tileSize: number;
   action: ActionTag | null;
-  initAction: ActionTag;
-  playBall!: PlayBallUpdatable;
+  currentAction!: Updatable;
 
-  constructor(scene: Play, pos: Vec2, name: string, initAction: ActionTag) {
-
+  constructor(
+    scene: Play,
+    pos: Vec2,
+    name: string,
+  ) {
     super(scene, pos, 16, 32, "s");
     this.name = name;
     this.tileSize = scene.art!.tileSize;
     this.action = null;
-    this.initAction = initAction;
     this.drawOffset.y = -this.tileSize;
-
   }
 
   init(): void {
-  
     this.animations.registerSpritesheet("foods");
-
-    this.animations.registerSpritesheet(`${this.name}-baller`);
 
     this.animations.registerSpritesheet(`${this.name}-base`, {
       defaults: REPEAT_DEFAULTS,
-    })
-    
+    });
 
     this.animations.play("idle-stand-" + this.direction);
 
@@ -57,7 +58,6 @@ export default class Human extends Sprite {
             this.vel.y = 0;
             this.vel.x = 0;
           } else if (anim.includes("walk")) {
-
             switch (this.direction) {
               case "n":
                 this.vel.y = -Human.WALK_SPEED;
@@ -76,22 +76,14 @@ export default class Human extends Sprite {
                 this.vel.y = 0;
                 break;
             }
-                      this.pos.x += this.vel.x;
-          this.pos.y += this.vel.y;
+            this.pos.x += this.vel.x;
+            this.pos.y += this.vel.y;
           } else {
             throw new Error("Animation " + anim + " not found!");
           }
           break;
       }
     };
-
-    const ballGame = (this.scene as Play).getBallGame();
-    const myPlayerArea = ballGame.getPlayerArea(this.id);
-    this.direction = myPlayerArea.direction;
-   
-
-    this.playBall = new PlayBall(this,( this.scene as Play).getBallGame(), myPlayerArea);
-    this.playBall.init();
 
 
     // Useful for debugging
@@ -105,12 +97,20 @@ export default class Human extends Sprite {
   }
 
   update(dt: number): void {
-    this.playBall.update(dt);
+    this.currentAction.update(dt);
   }
 
   isSitting(): boolean {
     const anim = this.animations.getPlaying();
     return anim !== null && anim.includes("idle-sit");
+  }
+
+  protected transitionToAction<A extends ActionTag>(
+    tag: A,
+    ...args: ActionSpec[A]["args"]
+  ) {
+    this.currentAction = createAction(tag, ...args);
+    this.currentAction.init();
   }
 }
 
@@ -136,7 +136,7 @@ const AnimationSettings: Record<string, AnimationSetting> = {
     positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
   },
-    "walk-hold-n": {
+  "walk-hold-n": {
     positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
   },
@@ -176,7 +176,7 @@ const AnimationSettings: Record<string, AnimationSetting> = {
     positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
   },
-    "idle-stand-hold-n": {
+  "idle-stand-hold-n": {
     positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
   },

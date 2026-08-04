@@ -17,6 +17,7 @@ export default class Skater extends Human {
   skatingAtPark: SkatingAtPark;
   obstacle: number | null;
   bench: number | null;
+  private initAction: ActionTag;
 
   constructor(
     scene: Play,
@@ -25,12 +26,13 @@ export default class Skater extends Human {
     skill: Skill,
     initAction: ActionTag,
   ) {
-    super(scene, pos, name, initAction);
+    super(scene, pos, name);
 
     this.skill = skill;
     this.skatingAtPark = new SkatingAtPark(this);
     this.obstacle = null;
     this.bench = null;
+    this.initAction = initAction;
   }
 
   init(): void {

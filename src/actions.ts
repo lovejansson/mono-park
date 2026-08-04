@@ -24,6 +24,7 @@ export type ActionSpec = FikaActionSpec &
 export type ActionTag = keyof ActionSpec;
 
 export interface Updatable {
+  readonly tag: ActionTag;
   init(): void;
   update(dt: number): void;
   isComplete(): boolean;

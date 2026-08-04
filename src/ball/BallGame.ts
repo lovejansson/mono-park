@@ -13,7 +13,7 @@ export default class BallGame {
   private playerWithBall: number | null;
   private passTo: number | null;
   private ball: Ball;
-  private playerAreas: PlayerArea[];
+  private playerAreas: (PlayerArea & { player: number | null })[];
   private passTargetPosByPlayer: Map<number, Vec2>;
 
   constructor(
@@ -28,8 +28,43 @@ export default class BallGame {
     this.ball = ball;
     this.play = play;
     this.players = players;
-    this.playerAreas = playerAreas;
+    this.playerAreas = playerAreas.map((pa) => ({ ...pa, player: null }));
     this.passTargetPosByPlayer = new Map();
+  }
+
+  enter(id: number): void {
+    const player = this.players.find((p) => p === id);
+
+    if (player !== undefined) throw new Error("Player already in game");
+
+    const playerArea = this.playerAreas.find((pa) => pa.player === null);
+
+    if (playerArea === undefined) throw new Error("Game is full");
+
+    this.players.push(id);
+
+    playerArea.player = id;
+  }
+
+  quit(id: number): void {
+    const idx = this.players.findIndex((p) => p === id);
+
+    if (idx === -1) throw new Error("No player found.");
+
+    const playerArea = this.playerAreas.find((pa) => pa.player === null);
+
+    if (playerArea === undefined) throw new Error("Player not in game");
+
+    this.players.splice(idx, 1);
+    playerArea.player = null;
+  }
+
+  isPlaying(id: number): boolean {
+    return this.players.find((p) => p === id) !== undefined;
+  }
+
+  numberOfPlayers(): number {
+    return this.players.length;
   }
 
   getRandomPlayer(me: number): number {
@@ -49,13 +84,11 @@ export default class BallGame {
 
     if (playerIdx === -1) throw new Error("No player found.");
 
-    if (this.players.length <= 2) {
-      return playerIdx === 0
-        ? this.playerAreas.find((a) => a.direction === "e")!
-        : this.playerAreas.find((a) => a.direction === "w")!;
-    }
+    const playerArea = this.playerAreas.find((pa) => pa.player === null);
 
-    return this.playerAreas[playerIdx];
+    if (playerArea === undefined) throw new Error("Player not in game");
+
+    return { direction: playerArea.direction, positions: playerArea.positions };
   }
 
   getBallPos(): Vec2 {
@@ -134,17 +167,19 @@ export class Ball extends Sprite {
       isInAir: false,
     };
     this.animations.registerSpritesheet("ball");
-
   }
 
   init(): void {
     this.animations.onFrameChange = (_: string) => {
       if (this.state.isInAir) {
-        const posChange = roundToDecimal(easeOut(this.state.t / this.state.duration, 2), 2);
+        const posChange = roundToDecimal(
+          easeOut(this.state.t / this.state.duration, 2),
+          2,
+        );
         // easeOut(this.state.t / this.state.duration, 2);
 
-        const arcOffset = 
-          Math.sin(posChange * Math.PI) * this.scene.art!.tileSize / 2;
+        const arcOffset =
+          (Math.sin(posChange * Math.PI) * this.scene.art!.tileSize) / 2;
 
         this.pos.x = Math.round(
           this.state.from.x + posChange * (this.state.to.x - this.state.from.x),

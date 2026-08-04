@@ -1,6 +1,7 @@
-import type { Updatable } from "./actions";
+import type { ActionTag, Updatable } from "./actions";
 import type Human from "./Human";
 import type { Vec2 } from "./lib";
+import type { Direction } from "./lib/types";
 import { AnimationSequence, TransitionType } from "./lib";
 import type { OverlayOptions } from "./lib";
 import { findClosestFreeCell } from "./grid";
@@ -25,12 +26,16 @@ export class GoTo implements CommonUpdatable {
   private pathGoalPos: Vec2;
   private preApproach: AnimationSequence | null;
   private finalApproach: AnimationSequence | null;
-  private overlayFn?:(human: Human)  => OverlayOptions;
+  private overlayFn?: (human: Human) => OverlayOptions;
 
   constructor(
     human: Human,
     pos: Vec2,
-    animBase?: { walk: string; idle: string; overlayFn?: (human: Human) => OverlayOptions },
+    animBase?: {
+      walk: string;
+      idle: string;
+      overlayFn?: (human: Human) => OverlayOptions;
+    },
   ) {
     this.human = human;
     this.path = null;
@@ -55,7 +60,11 @@ export class GoTo implements CommonUpdatable {
 
     let startCell = roundedStartCell;
     if (scene.parkGrid[roundedStartCell.row]?.[roundedStartCell.col] !== 0) {
-      const freeCell = findClosestFreeCell(roundedStartCell, scene.parkGrid, [0]);
+      const freeCell = findClosestFreeCell(
+        roundedStartCell,
+        scene.parkGrid,
+        [0],
+      );
       if (freeCell !== null) {
         startCell = freeCell;
       }
@@ -69,10 +78,12 @@ export class GoTo implements CommonUpdatable {
     const roundedGoalCell = posToCell(roundedGoalPos, tileSize);
 
     let goalCell = roundedGoalCell;
-    if (
-      scene.parkGrid[roundedGoalCell.row]?.[roundedGoalCell.col] !== 0
-    ) {
-      const freeCell = findClosestFreeCell(roundedGoalCell, scene.parkGrid, [0]);
+    if (scene.parkGrid[roundedGoalCell.row]?.[roundedGoalCell.col] !== 0) {
+      const freeCell = findClosestFreeCell(
+        roundedGoalCell,
+        scene.parkGrid,
+        [0],
+      );
       if (freeCell !== null) {
         goalCell = freeCell;
       }
@@ -161,7 +172,9 @@ export class GoTo implements CommonUpdatable {
       const animDirection = this.getAnimDirection();
 
       if (
-        !this.human.animations.isPlaying(`${this.walkAnimBase}-${animDirection}`)
+        !this.human.animations.isPlaying(
+          `${this.walkAnimBase}-${animDirection}`,
+        )
       ) {
         this.human.animations.play(`${this.walkAnimBase}-${animDirection}`, {
           overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
@@ -295,6 +308,29 @@ export class ContinousAnim implements CommonUpdatable {
   }
 }
 
+export class TransitionActionTick implements CommonUpdatable {
+  static TAG: "transition-tick" = "transition-tick";
+  readonly tag: "transition-tick" = TransitionActionTick.TAG;
+  private human: Human;
+  private anim: string;
+  action: ActionTag;
+
+  constructor(human: Human, anim: string, action: ActionTag) {
+    this.human = human;
+    this.anim = anim;
+    this.human.animations.play(anim);
+    this.action = action;
+  }
+
+  init() {}
+
+  update(_: number): void {}
+
+  isComplete(): boolean {
+    return !this.human.animations.isPlaying(this.anim);
+  }
+}
+
 export class TransitionAnim implements CommonUpdatable {
   static TAG: "transition-anim" = "transition-anim";
   readonly tag: "transition-anim" = TransitionAnim.TAG;
@@ -316,10 +352,95 @@ export class TransitionAnim implements CommonUpdatable {
   }
 }
 
+export class SitOnBench implements CommonUpdatable {
+  static TAG: "sit-bench" = "sit-bench";
+  readonly tag: "sit-bench" = SitOnBench.TAG;
+  private human: Human;
+  private timer: Timer | null;
+
+  constructor(human: Human, durationMs: number | "ever") {
+    this.human = human;
+    this.human.action = this.tag;
+    this.timer = null;
+
+    if (durationMs !== "ever") {
+      this.timer = new Timer();
+      this.timer.start(durationMs);
+    }
+  }
+
+  init() {}
+
+  update(_: number): void {
+    if (!this.human.animations.isPlaying("idle-sit-s")) {
+      this.human.direction = "s";
+      this.human.animations.play("idle-sit-s");
+    }
+  }
+
+  isComplete(): boolean {
+    return this.timer !== null && this.timer.isStopped;
+  }
+}
+
+export class SitOnGrass implements CommonUpdatable {
+  static TAG: "sit-grass" = "sit-grass";
+  readonly tag: "sit-grass" = SitOnGrass.TAG;
+  private human: Human;
+  private direction: "n" | "e" | "s" | "w";
+  private timer: Timer | null;
+
+  constructor(human: Human, direction: Direction, durationMs: number | "ever") {
+    this.human = human;
+    this.human.action = this.tag;
+    this.direction = SitOnGrass.toSitDirection(direction);
+    this.timer = null;
+
+    if (durationMs !== "ever") {
+      this.timer = new Timer();
+      this.timer.start(durationMs);
+    }
+  }
+
+  init() {}
+
+  update(_: number): void {
+    if (!this.human.animations.isPlaying(`idle-sit-${this.direction}`)) {
+      this.human.direction = this.direction;
+      this.human.animations.play(`idle-sit-${this.direction}`);
+    }
+  }
+
+  isComplete(): boolean {
+    return this.timer !== null && this.timer.isStopped;
+  }
+
+  private static toSitDirection(dir: Direction): "n" | "e" | "s" | "w" {
+    switch (dir) {
+      case "n":
+      case "e":
+      case "s":
+      case "w":
+        return dir;
+      case "ne":
+      case "nw":
+        return "n";
+      case "se":
+      case "sw":
+        return "s";
+      default:
+        return "s";
+    }
+  }
+}
+
 const spec = {
   "go-to": { ctor: GoTo },
   "transition-anim": { ctor: TransitionAnim },
+  "transition-tick": { ctor: TransitionActionTick },
   "continous-anim": { ctor: ContinousAnim },
+  "sit-bench": { ctor: SitOnBench },
+  "sit-grass": { ctor: SitOnGrass },
 } as const;
 
 export type CommonActionSpec = {

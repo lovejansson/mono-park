@@ -4,9 +4,64 @@
 - make sure fika items looks good on the table when rendered!
 - Movements of ducks 
 - Drawing ducks 
-- Playing ball state 
-- Drawing all sprites 
 - Handling path movement collisions 
-- Creating a complete day for 1 group including syncing how they all visit the cafe together 
-- Feeding ducks 
-- Creating a complete day for all the groups 
+- Feeding ducks
+
+- Creating a complete day sim for all the groups that are visiting the park
+
+skate / ballers gruppen som också går och fikar / strosar i parken / köper saker i vending machine?
+
+börja på duck sim
+
+
+
+----------- Ballers group 
+
+4 stycken
+
+Chill on baller's spot under the trees 
+
+Play ball 
+
+Visit café to fika
+
+MAIN LOOP FOR HUMAN 
+
+Huvud aktivitet är play ball, resting om det är någon som är trött, gå till fiket ibland.
+
+Då behövs bara kod för att avsluta play ball om det bara är 1 kvar, den kan sätta sig ned och vänta i ball state med bollen
+
+Fixa gå till fik tillsammans. 
+
+        
+------------ Skaters 
+
+6 stycken 
+
+Will just skate all of the time?
+
+Go to vending machine 
+
+visit café
+
+
+---------------- Couple 
+
+2 st 
+
+sit at pond bench place 
+
+strolling
+
+visit café
+
+------ Grl gang 
+
+3 st
+
+sit around the pond 
+
+strolling 
+
+visit café 
+

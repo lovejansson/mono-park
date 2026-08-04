@@ -9,7 +9,6 @@ import spikeSkaterJSON from "./assets/spritesheets/spike-skater.json";
 import spikeBaseJSON from "./assets/spritesheets/spike-base.json";
 import kimSkaterJSON from "./assets/spritesheets/kim-skater.json";
 import kimBaseJSON from "./assets/spritesheets/kim-base.json";
-import amandaBaseJSON from "./assets/spritesheets/amanda-base.json";
 import bobbySkaterJSON from "./assets/spritesheets/bobby-skater.json";
 import bobbyBaseJSON from "./assets/spritesheets/bobby-base.json";
 import loveSkaterJSON from "./assets/spritesheets/love-skater.json";
@@ -17,12 +16,16 @@ import loveBaseJSON from "./assets/spritesheets/love-base.json";
 import jazzSkaterJSON from "./assets/spritesheets/jazz-skater.json";
 import jasmineBaseJSON from "./assets/spritesheets/jazz-base.json";
 import doorCafeJSON from "./assets/spritesheets/door-cafe.json";
-
+import amandaBaseJSON from "./assets/spritesheets/amanda-base.json";
 import amandaBallerJSON from "./assets/spritesheets/amanda-baller.json";
-import bobbyBallerJSON from "./assets/spritesheets/bobby-baller.json";
-import kimBallerJSON from "./assets/spritesheets/kim-baller.json";
-import spikeBallerJSON from "./assets/spritesheets/spike-baller.json";
-
+import bennyBaseJSON from "./assets/spritesheets/benny-base.json";
+import bennyBallerJSON from "./assets/spritesheets/benny-baller.json";
+import lindaBaseJSON from "./assets/spritesheets/linda-base.json";
+import lindaBallerJSON from "./assets/spritesheets/linda-baller.json";
+import maxBaseJSON from "./assets/spritesheets/max-base.json";
+import maxBallerJSON from "./assets/spritesheets/max-baller.json";
+import nickBaseJSON from "./assets/spritesheets/nick-base.json";
+import nickBallerJSON from "./assets/spritesheets/nick-baller.json";
 import ballJSON from "./assets/spritesheets/ball.json";
 import foodsCafeJSON from "./assets/spritesheets/foods.json";
 import { type AsepriteJSON } from "./lib/index";
@@ -32,6 +35,7 @@ import Table from "./cafe/Table.ts";
 import Cafe, { Tables } from "./cafe/Cafe.ts";
 import Human from "./Human.ts";
 import BallGame, { Ball, type PlayerArea } from "./ball/BallGame.ts";
+import Baller from "./ball/Baller.ts";
 
 export default class Play extends Scene {
   private tilemap: Tilemap;
@@ -61,9 +65,7 @@ export default class Play extends Scene {
 
   getHuman(id: number): Human {
     const human = this.humans.find((h) => h.id === id);
-
     if (human === undefined) throw new Error("Human not found in scene.");
-
     return human;
   }
 
@@ -79,12 +81,19 @@ export default class Play extends Scene {
     this.loadSprite(baseKey, baseJson);
   }
 
-  private loadSprite(name: string, json: AsepriteJSON) {
-    this.art!.images.add(name, `/sprites/${name}.png`);
-    this.art!.spritesheets.create(name, name, json);
+  private loadBallerSprite(
+    name: string,
+    ballerJSON: AsepriteJSON,
+    baseJson: AsepriteJSON,
+  ) {
+    const ballerKey = `${name}-baller`;
+    const baseKey = `${name}-base`;
+
+    this.loadSprite(ballerKey, ballerJSON);
+    this.loadSprite(baseKey, baseJson);
   }
 
-  async init() {
+  private async loadStaticAssets() {
     this.art!.images.add("tilemap", this.tilemap.tilemap);
 
     this.loadSkaterSprite(
@@ -104,7 +113,7 @@ export default class Play extends Scene {
     );
 
     this.loadSkaterSprite(
-      "jazz",
+      "love",
       loveSkaterJSON as AsepriteJSON,
       loveBaseJSON as AsepriteJSON,
     );
@@ -116,36 +125,51 @@ export default class Play extends Scene {
     );
 
     this.loadSprite("door-cafe", doorCafeJSON as AsepriteJSON);
-
     this.loadSprite("foods", foodsCafeJSON as AsepriteJSON);
-
     this.loadSprite("ball", ballJSON as AsepriteJSON);
 
-
-    this.loadSprite("amanda-base", amandaBaseJSON as AsepriteJSON);
-
-
-    
-    this.loadSprite("kim-baller", kimBallerJSON as AsepriteJSON);
-
-    
-    this.loadSprite("spike-baller", spikeBallerJSON as AsepriteJSON);
-
-    
-    this.loadSprite("amanda-baller", amandaBallerJSON as AsepriteJSON);
-
-
-    
-    this.loadSprite("bobby-baller", bobbyBallerJSON as AsepriteJSON);
-
-   
-
+    this.loadBallerSprite(
+      "linda",
+      lindaBallerJSON as AsepriteJSON,
+      lindaBaseJSON as AsepriteJSON,
+    );
+    this.loadBallerSprite(
+      "benny",
+      bennyBallerJSON as AsepriteJSON,
+      bennyBaseJSON as AsepriteJSON,
+    );
+    this.loadBallerSprite(
+      "max",
+      maxBallerJSON as AsepriteJSON,
+      maxBaseJSON as AsepriteJSON,
+    );
+    this.loadBallerSprite(
+      "amanda",
+      amandaBallerJSON as AsepriteJSON,
+      amandaBaseJSON as AsepriteJSON,
+    );
+    this.loadBallerSprite(
+      "nick",
+      nickBallerJSON as AsepriteJSON,
+      nickBaseJSON as AsepriteJSON,
+    );
     // This is a transparent image for a "flat" obstacle... just bc static images require an image
 
     this.art!.images.add(
       "flat",
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAEklEQVR4nGNgGAWjYBSMglEwCjAAAGwAAWzQqWQAAAAASUVORK5CYII=",
     );
+
+    await this.art!.images.load();
+  }
+
+  private loadSprite(name: string, json: AsepriteJSON) {
+    this.art!.images.add(name, `/sprites/${name}.png`);
+    this.art!.spritesheets.create(name, name, json);
+  }
+
+  async init() {
+    await this.loadStaticAssets();
 
     const flat = new Flat(
       this,
@@ -171,7 +195,7 @@ export default class Play extends Scene {
     this.staticImages.push(tilemap);
     this.addObject(tilemap);
 
-    const playerAreas: PlayerArea[] = []
+    const playerAreas: PlayerArea[] = [];
 
     for (const t of this.tilemap.attributes) {
       const isSkateGround =
@@ -180,28 +204,32 @@ export default class Play extends Scene {
       const isWalkable =
         t.attributes.hasOwnProperty("isWalkable") &&
         t.attributes.isWalkable === true;
-      const isPlayerArea = t.attributes.hasOwnProperty("isPlayerArea") && t.attributes.isPlayerArea === true;
+      const isPlayerArea =
+        t.attributes.hasOwnProperty("isPlayerArea") &&
+        t.attributes.isPlayerArea === true;
 
       if (isSkateGround || isWalkable) {
         this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] = 0;
       }
 
-      if(isPlayerArea) {
+      if (isPlayerArea) {
         const direction = t.attributes.playerAreaDirection;
 
-        if(direction === undefined) throw new Error("No direction for player area");
+        if (direction === undefined)
+          throw new Error("No direction for player area");
 
-        const playerArea = playerAreas.find(a => a.direction === direction);
+        const playerArea = playerAreas.find((a) => a.direction === direction);
 
-        if(playerArea) {
-          playerArea.positions.push({x: t.pos.x, y: t.pos.y});
-         
+        if (playerArea) {
+          playerArea.positions.push({ x: t.pos.x, y: t.pos.y });
         } else {
-          playerAreas.push({direction: direction as Direction, positions: [{x: t.pos.x, y: t.pos.y}] })
+          playerAreas.push({
+            direction: direction as Direction,
+            positions: [{ x: t.pos.x, y: t.pos.y }],
+          });
         }
       }
     }
-
 
     for (const o of this.tilemap.objects) {
       const parsedObj = parseObject(o);
@@ -227,44 +255,57 @@ export default class Play extends Scene {
 
     await this.art!.images.load();
 
-    this.humans.push(new Human(this,  { x: 34 * this.art!.tileSize, y: 20 * this.art!.tileSize }, "spike", "play-ball"));
-
     this.humans.push(
-      new Human(
+      new Baller(
         this,
-        { x: 27 * this.art!.tileSize, y: 20 * this.art!.tileSize },
-        "bobby",
+        { x: 34 * this.art!.tileSize, y: 20 * this.art!.tileSize },
+        "linda",
         "play-ball",
       ),
     );
 
-     this.humans.push(new Human(this,  { x: 34 * this.art!.tileSize, y: 20 * this.art!.tileSize }, "amanda", "play-ball"));
-
     this.humans.push(
-      new Human(
+      new Baller(
         this,
         { x: 27 * this.art!.tileSize, y: 20 * this.art!.tileSize },
-        "kim",
+        "benny",
         "play-ball",
       ),
     );
 
-    const ball = new Ball(this,  { x: 27 * this.art!.tileSize, y: 20 * this.art!.tileSize });
+    this.humans.push(
+      new Baller(
+        this,
+        { x: 34 * this.art!.tileSize, y: 20 * this.art!.tileSize },
+        "amanda",
+        "play-ball",
+      ),
+    );
+
+    this.humans.push(
+      new Baller(
+        this,
+        { x: 27 * this.art!.tileSize, y: 20 * this.art!.tileSize },
+        "max",
+        "play-ball",
+      ),
+    );
+
+    const ball = new Ball(this, {
+      x: 27 * this.art!.tileSize,
+      y: 20 * this.art!.tileSize,
+    });
 
     ball.init();
 
     this.addObject(ball);
-
-
-    
-
 
     this.ballGame = new BallGame(
       this,
       ball,
       this.humans[1].id,
       this.humans.map((h) => h.id),
-      playerAreas
+      playerAreas,
     );
 
     for (const h of this.humans) {
@@ -272,10 +313,10 @@ export default class Play extends Scene {
       h.init();
     }
 
-    // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "jasmine", 10, "bowl"));
-    // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "bobby", 10, "bowl"));
-    // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "kim", 10, "bench"));
-    // this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "rail"));
+    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl"));
+    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl"));
+    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "bench"));
+    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "rail"));
   }
 
   getBallGame(): BallGame {
@@ -512,7 +553,6 @@ export default class Play extends Scene {
       const v1 = renderSortCompValue.get(s1.id);
       const v2 = renderSortCompValue.get(s2.id);
 
-    
       if (v1 === undefined || v2 === undefined) {
         console.log(s1, s2);
         console.log("Render sort error");

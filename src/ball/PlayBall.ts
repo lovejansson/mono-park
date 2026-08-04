@@ -1,33 +1,36 @@
 import { createAction, type Updatable } from "../actions.ts";
+import { GoTo, SitOnGrass, type CommonActionSpec } from "../commonActions.ts";
 import type Human from "../Human.ts";
 import Path from "../lib/Path.ts";
 import type { Direction } from "../lib/types.ts";
-import { isSamePos, randomEl } from "../lib/utils.ts";
+import { isSamePos, randomEl, randomInt } from "../lib/utils.ts";
 import type Play from "../Play.ts";
-import Timer, { THREE_SECONDS } from "../Timer.ts";
-import type { PlayerArea } from "./BallGame.ts";
+import Timer, { ONE_MINUTE, THREE_SECONDS } from "../Timer.ts";
 import type BallGame from "./BallGame.ts";
 
 export default class PlayBall implements PlayBallUpdatable {
   static TAG: "play-ball" = "play-ball";
   readonly tag: "play-ball" = PlayBall.TAG;
 
-  private currAction: PlayBallUpdatable | null;
+  private currAction: Updatable | null;
   private human: Human;
   private game: BallGame;
-  private playerArea: PlayerArea;
+  private timer: Timer;
 
-  constructor(human: Human, game: BallGame, playerArea: PlayerArea) {
+  constructor(human: Human, game: BallGame) {
     this.currAction = null;
     this.human = human;
-    this.playerArea = playerArea;
     this.game = game;
+    this.timer = new Timer();
   }
 
   init() {
-    this.human.direction = this.playerArea.direction;
-    this.human.pos = { ...randomEl(this.playerArea.positions)! };
-    this.human.animations.play(`idle-stand-${this.human.direction}`)
+    this.game.enter(this.human.id);
+    const playerArea = this.game.getPlayerArea(this.human.id);
+    this.human.direction = playerArea.direction;
+    this.human.pos = { ...randomEl(playerArea.positions)! };
+    this.human.animations.play(`idle-stand-${this.human.direction}`);
+    this.timer.start(ONE_MINUTE * randomInt(0.25, 1));
   }
 
   update(dt: number): void {
@@ -45,6 +48,11 @@ export default class PlayBall implements PlayBallUpdatable {
 
             break;
           case Pass.TAG:
+            if (this.timer.isStopped && this.game.numberOfPlayers() > 2) {
+              this.game.quit(this.human.id);
+              return;
+            }
+
             this.transitionToAction(WaitForPass.TAG, this.human, this.game);
             break;
         }
@@ -55,7 +63,7 @@ export default class PlayBall implements PlayBallUpdatable {
   }
 
   isComplete(): boolean {
-    return false;
+    return !this.game.isPlaying(this.human.id);
   }
 
   private transitionToAction<A extends PlayBallActionTag>(
@@ -86,7 +94,9 @@ class WaitForPass implements PlayBallUpdatable {
 
   update(dt: number): void {
     if (this.game.hasGotBall(this.human.id)) {
-      const playerAreaDirection = this.game.getPlayerArea(this.human.id).direction;
+      const playerAreaDirection = this.game.getPlayerArea(
+        this.human.id,
+      ).direction;
       const passTargetPos = this.game.getPassTargetPos(this.human.id);
 
       if (passTargetPos === null) {
@@ -106,7 +116,9 @@ class WaitForPass implements PlayBallUpdatable {
           this.human.animations.play(
             `idle-stand-${this.game.getPlayerArea(this.human.id).direction}`,
           );
-           this.human.direction = this.game.getPlayerArea(this.human.id).direction;
+          this.human.direction = this.game.getPlayerArea(
+            this.human.id,
+          ).direction;
           this.gotPassed = true;
         }
         return;
@@ -166,7 +178,10 @@ class Pass implements PlayBallUpdatable {
       return;
     }
 
-    if (this.hasTriggeredPass && !this.human.animations.isPlaying(`shoot-${this.passDirection}`)) {
+    if (
+      this.hasTriggeredPass &&
+      !this.human.animations.isPlaying(`shoot-${this.passDirection}`)
+    ) {
       this.human.animations.play(`idle-stand-${this.passDirection}`);
       this.hasPassedBall = true;
     }
@@ -174,6 +189,64 @@ class Pass implements PlayBallUpdatable {
 
   isComplete(): boolean {
     return this.hasPassedBall;
+  }
+}
+
+export class Chillin implements PlayBallUpdatable {
+  static TAG: "chillin" = "chillin";
+  readonly tag: "chillin" = Chillin.TAG;
+
+  private currAction: PlayBallUpdatable | Updatable | null;
+  private human: Human;
+  private game: BallGame;
+  private wantsToPlay: boolean;
+
+  constructor(human: Human, game: BallGame) {
+    this.currAction = null;
+    this.human = human;
+    this.game = game;
+    this.wantsToPlay = false;
+  }
+
+  init() {
+    // pick chillin spot, need dedicated spots for baller place chill
+
+    // go to that spot
+
+    this.transitionToAction(GoTo.TAG, this.human, { x: 0, y: 0 });
+  }
+
+  update(dt: number): void {
+    if (this.currAction === null)
+      throw new Error(`State ${Chillin.TAG} not initialized`);
+
+    if (this.currAction.isComplete()) {
+      switch (this.currAction.tag) {
+        case GoTo.TAG:
+          this.transitionToAction(SitOnGrass.TAG, this.human, "s", ONE_MINUTE);
+          break;
+        case SitOnGrass.TAG:
+          if (this.game.numberOfPlayers() <= 4) {
+            this.wantsToPlay = true;
+          }
+
+          
+          break;
+      }
+    }
+
+    this.currAction.update(dt);
+  }
+
+  isComplete(): boolean {
+    return this.wantsToPlay;
+  }
+
+  private transitionToAction<
+    A extends keyof (CommonActionSpec & PlayBallActionSpec),
+  >(tag: A, ...args: (CommonActionSpec & PlayBallActionSpec)[A]["args"]) {
+    this.currAction = createAction(tag, ...args);
+    this.currAction.init();
   }
 }
 
@@ -185,6 +258,7 @@ const spec = {
   "play-ball": { ctor: PlayBall },
   "wait-for-pass": { ctor: WaitForPass },
   pass: { ctor: Pass },
+  chillin: { ctor: Chillin },
 } as const;
 
 export type PlayBallActionTag = keyof PlayBallActionSpec;
