@@ -1525,7 +1525,9 @@
                 "y": 80
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isCactusSpot": true,
+                "spotDirection": "n"
             }
         },
         {
@@ -1534,7 +1536,9 @@
                 "y": 80
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isCactusSpot": true,
+                "spotDirection": "n"
             }
         },
         {
@@ -1543,7 +1547,9 @@
                 "y": 80
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isCactusSpot": true,
+                "spotDirection": "n"
             }
         },
         {
@@ -1552,7 +1558,9 @@
                 "y": 80
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isCactusSpot": true,
+                "spotDirection": "n"
             }
         },
         {
@@ -1561,7 +1569,9 @@
                 "y": 80
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isCactusSpot": true,
+                "spotDirection": "n"
             }
         },
         {
@@ -1570,7 +1580,9 @@
                 "y": 80
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isCactusSpot": true,
+                "spotDirection": "n"
             }
         },
         {
@@ -1579,7 +1591,9 @@
                 "y": 80
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isCactusSpot": true,
+                "spotDirection": "n"
             }
         },
         {
@@ -1741,7 +1755,9 @@
                 "y": 80
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpot": true,
+                "spotDirection": "w"
             }
         },
         {
@@ -1930,7 +1946,9 @@
                 "y": 96
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpotLeft": true,
+                "spotDirection": "e"
             }
         },
         {
@@ -2047,7 +2065,9 @@
                 "y": 96
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpot": true,
+                "spotDirection": "w"
             }
         },
         {
@@ -2236,7 +2256,9 @@
                 "y": 112
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpotLeft": true,
+                "spotDirection": "e"
             }
         },
         {
@@ -2353,7 +2375,9 @@
                 "y": 112
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpot": true,
+                "spotDirection": "w"
             }
         },
         {
@@ -2488,7 +2512,9 @@
                 "y": 128
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpotLeft": true,
+                "spotDirection": "e"
             }
         },
         {
@@ -2605,7 +2631,9 @@
                 "y": 128
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpot": true,
+                "spotDirection": "w"
             }
         },
         {
@@ -2731,7 +2759,9 @@
                 "y": 144
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpotLeft": true,
+                "spotDirection": "e"
             }
         },
         {
@@ -2848,7 +2878,9 @@
                 "y": 144
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpot": true,
+                "spotDirection": "w"
             }
         },
         {
@@ -2974,7 +3006,9 @@
                 "y": 160
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpotLeft": true,
+                "spotDirection": "e"
             }
         },
         {
@@ -3091,7 +3125,9 @@
                 "y": 160
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpot": true,
+                "spotDirection": "w"
             }
         },
         {
@@ -3280,7 +3316,9 @@
                 "y": 176
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpotLeft": true,
+                "spotDirection": "e"
             }
         },
         {
@@ -3586,7 +3624,9 @@
                 "y": 192
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isSkateSpotLeft": true,
+                "spotDirection": "e"
             }
         },
         {
@@ -5017,7 +5057,8 @@
                 "y": 272
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isBallerChillPos": true
             }
         },
         {
@@ -5305,7 +5346,8 @@
                 "y": 288
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isBallerChillPos": true
             }
         },
         {
@@ -5314,7 +5356,8 @@
                 "y": 288
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isBallerChillPos": true
             }
         },
         {
@@ -5332,7 +5375,8 @@
                 "y": 288
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isBallerChillPos": true
             }
         },
         {
@@ -5341,7 +5385,8 @@
                 "y": 288
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isBallerChillPos": true
             }
         },
         {
@@ -5536,7 +5581,9 @@
                 "y": 304
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isGrassByThePond": true,
+                "spotDirection": "s"
             }
         },
         {
@@ -5864,7 +5911,9 @@
                 "y": 320
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isGrassByThePond": true,
+                "spotDirection": "n"
             }
         },
         {
@@ -5882,7 +5931,9 @@
                 "y": 320
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isGrassByThePond": true,
+                "spotDirection": "e"
             }
         },
         {
@@ -5909,7 +5960,9 @@
                 "y": 320
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isGrassByThePond": true,
+                "spotDirection": "w"
             }
         },
         {
@@ -6264,7 +6317,9 @@
                 "y": 336
             },
             "attributes": {
-                "isWalkable": true
+                "isWalkable": true,
+                "isGrassByThePond": true,
+                "spotDirection": "n"
             }
         },
         {

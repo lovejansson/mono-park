@@ -1,4 +1,11 @@
-import { ArtObject, Scene, StaticImage, type Direction } from "./lib/index.ts";
+import {
+  ArtObject,
+  Scene,
+  StaticImage,
+  type Cell,
+  type Direction,
+  type Vec2,
+} from "./lib/index.ts";
 import { type Tilemap } from "./types.ts";
 import { createGrid, getRandomFreeCell } from "./grid.ts";
 import Obstacle, { Bowl, Flat, Rail } from "./skate-park/Obstacle.ts";
@@ -26,6 +33,11 @@ import maxBaseJSON from "./assets/spritesheets/max-base.json";
 import maxBallerJSON from "./assets/spritesheets/max-baller.json";
 import nickBaseJSON from "./assets/spritesheets/nick-base.json";
 import nickBallerJSON from "./assets/spritesheets/nick-baller.json";
+
+import kitJSON from "./assets/spritesheets/kit-base.json";
+import missyJSON from "./assets/spritesheets/missy-base.json";
+import sashaJSON from "./assets/spritesheets/sasha-base.json";
+
 import ballJSON from "./assets/spritesheets/ball.json";
 import foodsCafeJSON from "./assets/spritesheets/foods.json";
 import { type AsepriteJSON } from "./lib/index";
@@ -36,11 +48,29 @@ import Cafe, { Tables } from "./cafe/Cafe.ts";
 import Human from "./Human.ts";
 import BallGame, { Ball, type PlayerArea } from "./ball/BallGame.ts";
 import Baller from "./ball/Baller.ts";
+import Group from "./Group.ts";
+import Stroller from "./stroller/Stroller.ts";
+
+export enum StrollSpot {
+  CACTUSES,
+  SKATE_GROUND,
+  SKATE_GROUND_LEFT,
+  GRASS_BY_THE_POND,
+  BRIDGE,
+}
+
+type StrollSpotData = {
+  spot: StrollSpot;
+  positions: { pos: Vec2; direction: Direction }[];
+};
+
+type StrollSpotState = Map<string, boolean>;
+type OccupiedCellState = Map<string, 0 | 1 | 2>;
 
 export default class Play extends Scene {
   private tilemap: Tilemap;
   public obstacles: Obstacle[];
-  public parkGrid: (0 | 1)[][];
+  public parkGrid: (0 | 1 | 2)[][];
   private skaters!: Skater[];
   private humans: Human[];
   public tileSize: number;
@@ -50,6 +80,10 @@ export default class Play extends Scene {
 
   public cafe!: Cafe;
   public tables!: Tables; // Is set in init()
+
+  private spots: StrollSpotData[];
+  private strollSpotStates: Map<StrollSpot, StrollSpotState>;
+  private occupiedCellState: OccupiedCellState;
 
   constructor(tilemap: Tilemap) {
     super();
@@ -61,6 +95,109 @@ export default class Play extends Scene {
     this.benches = [];
     this.staticImages = [];
     this.humans = [];
+    this.spots = [];
+    this.strollSpotStates = new Map();
+    this.occupiedCellState = new Map();
+  }
+
+  private strollPosKey(pos: Vec2): string {
+    return `${pos.x},${pos.y}`;
+  }
+
+  private getStrollSpotState(strollSpot: StrollSpot): StrollSpotState {
+    const state = this.strollSpotStates.get(strollSpot);
+
+    if (state === undefined) throw new Error("Stroll spot state not found!");
+
+    return state;
+  }
+
+  private initStrollSpotState(strollSpot: StrollSpot): StrollSpotState {
+    let state = this.strollSpotStates.get(strollSpot);
+
+    if (state === undefined) {
+      state = new Map();
+      this.strollSpotStates.set(strollSpot, state);
+    }
+
+    return state;
+  }
+
+  returnStrollPos(strollSpot: StrollSpot, strollPos: Vec2): void {
+    const state = this.getStrollSpotState(strollSpot);
+    const key = this.strollPosKey(strollPos);
+
+    if (!state.has(key)) throw new Error("Stroll position not found!");
+
+    state.set(key, true);
+  }
+
+  private getStrollSpot(strollSpot: StrollSpot): StrollSpotData {
+    const spot = this.spots.find((s) => s.spot === strollSpot);
+
+    if (spot === undefined) throw new Error("Stroll spot not found!");
+
+    return spot;
+  }
+
+  getStrollPos(strollSpot: StrollSpot): { pos: Vec2; direction: Direction } {
+    const spot = this.getStrollSpot(strollSpot);
+    const state = this.getStrollSpotState(strollSpot);
+
+    const spotPos = spot.positions.find(
+      (p) => state.get(this.strollPosKey(p.pos)) === true,
+    );
+
+    if (spotPos === undefined)
+      throw new Error("No position found for stroll spot!");
+
+    state.set(this.strollPosKey(spotPos.pos), false);
+
+    return { pos: spotPos.pos, direction: spotPos.direction };
+  }
+
+  isTileWalkable(tile: Cell): boolean {
+    return this.parkGrid[tile.row][tile.col] === 0;
+  }
+
+  occupyCell(pos: Vec2): void {
+    const { row, col } = this.getGridCellFromPos(pos);
+    const key = `${row},${col}`;
+
+    if (!this.occupiedCellState.has(key)) {
+      this.occupiedCellState.set(key, this.parkGrid[row][col]);
+    }
+
+    this.parkGrid[row][col] = 1;
+  }
+
+  unoccupyCell(pos: Vec2): void {
+    const { row, col } = this.getGridCellFromPos(pos);
+    const key = `${row},${col}`;
+    const previousValue = this.occupiedCellState.get(key);
+
+    if (previousValue === undefined) {
+      return;
+    }
+
+    this.parkGrid[row][col] = previousValue;
+    this.occupiedCellState.delete(key);
+  }
+
+  private getGridCellFromPos(pos: Vec2): Cell {
+    const row = Math.floor(pos.y / this.tileSize);
+    const col = Math.floor(pos.x / this.tileSize);
+
+    if (
+      row < 0 ||
+      row >= this.parkGrid.length ||
+      col < 0 ||
+      col >= this.parkGrid[0].length
+    ) {
+      throw new Error("Grid cell is out of bounds");
+    }
+
+    return { row, col };
   }
 
   getHuman(id: number): Human {
@@ -153,6 +290,11 @@ export default class Play extends Scene {
       nickBallerJSON as AsepriteJSON,
       nickBaseJSON as AsepriteJSON,
     );
+
+    this.loadSprite("missy-base", missyJSON as AsepriteJSON);
+    this.loadSprite("sasha-base", sashaJSON as AsepriteJSON);
+    this.loadSprite("kit-base", kitJSON as AsepriteJSON);
+
     // This is a transparent image for a "flat" obstacle... just bc static images require an image
 
     this.art!.images.add(
@@ -196,20 +338,60 @@ export default class Play extends Scene {
     this.addObject(tilemap);
 
     const playerAreas: PlayerArea[] = [];
+    const ballerChillPositions: Vec2[] = [];
 
     for (const t of this.tilemap.attributes) {
-      const isSkateGround =
-        t.attributes.hasOwnProperty("isSkateGround") &&
-        t.attributes.isSkateGround === true;
-      const isWalkable =
-        t.attributes.hasOwnProperty("isWalkable") &&
-        t.attributes.isWalkable === true;
-      const isPlayerArea =
-        t.attributes.hasOwnProperty("isPlayerArea") &&
-        t.attributes.isPlayerArea === true;
+      const isSkateGround = t.attributes.isSkateGround === true;
+      const isWalkable = t.attributes.isWalkable === true;
+      const isPlayerArea = t.attributes.isPlayerArea === true;
+      const isBallerChillPos = t.attributes.isBallerChillPos === true;
+      const isGrassByThePond = t.attributes.isGrassByThePond === true;
+      const isCactusSpot = t.attributes.isCactusSpot === true;
+      const isSkateSpot = t.attributes.isSkateSpot === true;
+      const isSkateSpotLeft = t.attributes.isSkateSpotLeft === true;
+
+      if (isGrassByThePond && t.attributes.spotDirection) {
+        this.pushSpot(
+          StrollSpot.GRASS_BY_THE_POND,
+          t.pos,
+          t.attributes.spotDirection as Direction,
+        );
+      }
+
+      if (isCactusSpot && t.attributes.spotDirection) {
+        this.pushSpot(
+          StrollSpot.CACTUSES,
+          t.pos,
+          t.attributes.spotDirection as Direction,
+        );
+      }
+
+      if (isSkateSpot && t.attributes.spotDirection) {
+        this.pushSpot(
+          StrollSpot.SKATE_GROUND,
+          t.pos,
+          t.attributes.spotDirection as Direction,
+        );
+      }
+
+      if (isSkateSpotLeft && t.attributes.spotDirection) {
+        this.pushSpot(
+          StrollSpot.SKATE_GROUND_LEFT,
+          t.pos,
+          t.attributes.spotDirection as Direction,
+        );
+      }
+
+      if (isBallerChillPos) {
+        ballerChillPositions.push(t.pos);
+      }
 
       if (isSkateGround || isWalkable) {
         this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] = 0;
+      }
+
+      if (isSkateGround) {
+        this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] = 2;
       }
 
       if (isPlayerArea) {
@@ -239,7 +421,10 @@ export default class Play extends Scene {
       this.createObject(parsedObj);
 
       // make objects unwalkable...
-      const startRow = o.pos.y / this.tileSize;
+      const startRow =
+        o.name === "cafe"
+          ? o.pos.y / this.tileSize + 1
+          : o.pos.y / this.tileSize;
       const startCol = o.pos.x / this.tileSize;
       const endRow = startRow + o.height / this.tileSize;
       const endCol = o.pos.x / this.tileSize + o.width / this.tileSize;
@@ -255,57 +440,121 @@ export default class Play extends Scene {
 
     await this.art!.images.load();
 
-    this.humans.push(
-      new Baller(
-        this,
-        { x: 34 * this.art!.tileSize, y: 20 * this.art!.tileSize },
-        "linda",
-        "play-ball",
-      ),
-    );
-
-    this.humans.push(
-      new Baller(
-        this,
-        { x: 27 * this.art!.tileSize, y: 20 * this.art!.tileSize },
-        "benny",
-        "play-ball",
-      ),
-    );
-
-    this.humans.push(
-      new Baller(
-        this,
-        { x: 34 * this.art!.tileSize, y: 20 * this.art!.tileSize },
-        "amanda",
-        "play-ball",
-      ),
-    );
-
-    this.humans.push(
-      new Baller(
-        this,
-        { x: 27 * this.art!.tileSize, y: 20 * this.art!.tileSize },
-        "max",
-        "play-ball",
-      ),
-    );
-
     const ball = new Ball(this, {
-      x: 27 * this.art!.tileSize,
-      y: 20 * this.art!.tileSize,
+      x: 0,
+      y: 0,
     });
 
     ball.init();
 
     this.addObject(ball);
 
-    this.ballGame = new BallGame(
-      this,
-      ball,
-      this.humans[1].id,
-      this.humans.map((h) => h.id),
-      playerAreas,
+    this.ballGame = new BallGame(this, ball, playerAreas, ballerChillPositions);
+
+    const ballers = new Group(this, []);
+
+    this.humans.push(
+      new Baller(
+        this,
+        {
+          x: 0,
+          y: 0,
+        },
+        "linda",
+        "play-ball",
+        this.ballGame,
+        ballers,
+      ),
+    );
+
+    this.humans.push(
+      new Baller(
+        this,
+        {
+          x: 0,
+          y: 0,
+        },
+        "benny",
+        "play-ball",
+        this.ballGame,
+        ballers,
+      ),
+    );
+
+    this.humans.push(
+      new Baller(
+        this,
+        {
+          x: 0,
+          y: 0,
+        },
+        "amanda",
+        "play-ball",
+        this.ballGame,
+        ballers,
+      ),
+    );
+
+    this.humans.push(
+      new Baller(
+        this,
+        {
+          x: 0,
+          y: 0,
+        },
+        "max",
+        "play-ball",
+        this.ballGame,
+        ballers,
+      ),
+    );
+
+    const grls = new Group(this, [
+      StrollSpot.GRASS_BY_THE_POND,
+      StrollSpot.CACTUSES,
+     StrollSpot.SKATE_GROUND_LEFT,
+      StrollSpot.GRASS_BY_THE_POND,
+      StrollSpot.CACTUSES,
+    
+    ]);
+
+    this.humans.push(
+      new Stroller(
+        this,
+        {
+          x: 10 * this.tileSize,
+          y: this.tileSize * 11,
+        },
+        "missy",
+        "stroll",
+        grls,
+      ),
+    );
+
+    this.humans.push(
+      new Stroller(
+        this,
+        {
+          x: this.tileSize * 10,
+          y: this.tileSize * 10,
+        },
+        "kit",
+        "stroll",
+        grls,
+      ),
+    );
+
+    this.humans.push(
+      new Stroller(
+        this,
+        {
+          x: this.tileSize * 9,
+          y: this.tileSize * 10,
+        },
+        "sasha",
+        "stroll",
+        grls,
+      ),
     );
 
     for (const h of this.humans) {
@@ -313,10 +562,34 @@ export default class Play extends Scene {
       h.init();
     }
 
-    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl"));
-    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl"));
-    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "bench"));
-    this.pushSkater(new Skater(this, { x: 0, y: 0 }, "love", 10, "rail"));
+    const skaters = new Group(this, []);
+    console.dir(this.parkGrid);
+    this.pushSkater(
+      new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl", skaters),
+    );
+    this.pushSkater(
+      new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl", skaters),
+    );
+    this.pushSkater(
+      new Skater(this, { x: 0, y: 0 }, "love", 10, "bench", skaters),
+    );
+    this.pushSkater(
+      new Skater(this, { x: 0, y: 0 }, "love", 10, "rail", skaters),
+    );
+  }
+
+  private pushSpot(spot: StrollSpot, pos: Vec2, direction: Direction) {
+    const s = this.spots.find((s) => s.spot === spot);
+    if (s) {
+      s.positions.push({ pos, direction });
+    } else {
+      this.spots.push({
+        spot,
+        positions: [{ pos, direction }],
+      });
+    }
+
+    this.initStrollSpotState(spot).set(this.strollPosKey(pos), true);
   }
 
   getBallGame(): BallGame {
@@ -467,7 +740,7 @@ export default class Play extends Scene {
   }
 
   pushSkater(skater: Skater) {
-    const cell = getRandomFreeCell(this.parkGrid);
+    const cell = getRandomFreeCell(this.parkGrid, [2]);
     if (cell === null) return;
     skater.pos = cellToPos(cell, this.tileSize);
     skater.init();
@@ -482,8 +755,29 @@ export default class Play extends Scene {
     // Sort objects
 
     const renderSortCompValue = new Map<number, number>();
+    const ballHolder = this.humans.find((h) => this.ballGame.hasGotBall(h.id));
+    const ballHolderAnim = ballHolder?.animations.getPlaying() ?? null;
+    const shouldUseHolderBallSort =
+      ballHolder !== undefined &&
+      ballHolderAnim !== null &&
+      (ballHolderAnim.startsWith("idle-stand-") ||
+        ballHolderAnim.startsWith("shoot-"));
 
     for (const o of this.objects) {
+      if (
+        o instanceof Ball &&
+        ballHolder !== undefined &&
+        shouldUseHolderBallSort
+      ) {
+        renderSortCompValue.set(
+          o.id,
+          ballHolder.direction === "n"
+            ? ballHolder.pos.y - 1
+            : ballHolder.pos.y + 1,
+        );
+        continue;
+      }
+
       renderSortCompValue.set(o.id, o.pos.y);
     }
 
@@ -525,6 +819,8 @@ export default class Play extends Scene {
           renderSortCompValue.set(h.id, h.pos.y + 1);
         }
         if (chair === undefined) throw new Error("Chair not found");
+
+        continue;
       }
 
       renderSortCompValue.set(h.id, h.pos.y);

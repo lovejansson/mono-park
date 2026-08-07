@@ -1,17 +1,127 @@
-import type { ActionTag, Updatable } from "./actions";
+import type { Updatable } from "./actions";
 import type Human from "./Human";
 import type { Vec2 } from "./lib";
 import type { Direction } from "./lib/types";
-import { AnimationSequence, TransitionType } from "./lib";
+import { AnimationSequence, getPosDiff, TransitionType } from "./lib";
 import type { OverlayOptions } from "./lib";
-import { findClosestFreeCell } from "./grid";
 import { Path } from "./lib";
 import type Play from "./Play";
 import Timer from "./Timer";
-import { cellToPos, isSamePos, posToCell } from "./lib";
+import { isSamePos } from "./lib";
+import type Bench from "./Bench";
 
 export interface CommonUpdatable extends Updatable {
   readonly tag: CommonActionTag;
+}
+
+function isWholeTile(pos: Vec2, tileSize: number): boolean {
+  return pos.x % tileSize === 0 && pos.y % tileSize === 0;
+}
+
+function getNearestWholeTile(pos: Vec2, tileSize: number): Vec2 {
+  return {
+    x: Math.round(pos.x / tileSize) * tileSize,
+    y: Math.round(pos.y / tileSize) * tileSize,
+  };
+}
+
+function getWholeTileTowardTarget(from: Vec2, target: Vec2, tileSize: number): Vec2 {
+  const x =
+    isWholeTile({ x: from.x, y: 0 }, tileSize)
+      ? from.x
+      : target.x >= from.x
+        ? Math.ceil(from.x / tileSize) * tileSize
+        : Math.floor(from.x / tileSize) * tileSize;
+
+  const y =
+    isWholeTile({ x: 0, y: from.y }, tileSize)
+      ? from.y
+      : target.y >= from.y
+        ? Math.ceil(from.y / tileSize) * tileSize
+        : Math.floor(from.y / tileSize) * tileSize;
+
+  return { x, y };
+}
+
+export class FollowTheLeader implements CommonUpdatable {
+  static TAG: "follow-the-leader" = "follow-the-leader";
+  readonly tag: "follow-the-leader" = FollowTheLeader.TAG;
+  private static readonly DETACH_DISTANCE_IN_TILES = 3;
+
+  private human: Human;
+  private shouldDetach: boolean;
+
+  constructor(human: Human) {
+    this.human = human;
+    this.shouldDetach = false;
+  }
+
+  init(): void {
+    this.human.animations.play(`walk-${this.human.direction}`);
+  }
+
+  update(_: number): void {
+    /**
+     * Each update the follower will check if the current slot target is still valid, i.e. is not occupied by for example a tree, then caclulate the distance to that slot 
+     * and set the direction to head for the slot.
+     */
+
+    let slot: Direction;
+
+    try {
+      slot = this.human.group.getFollowerSlot(this.human.id);
+    } catch {
+      slot = this.human.group.setFollowerSlot(this.human.id);
+    }
+
+    // if (!this.human.group.isWalking()) {
+    //   this.human.animations.play(`idle-stand-${this.human.direction}`);
+    //   return;
+    // }
+
+    if (!this.human.group.isSlotValid(slot)) {
+      slot = this.human.group.getNewSlot(this.human.id);
+    }
+
+    const slotPos = this.human.group.getSlotPos(slot);
+
+    const diff = getPosDiff(slotPos, this.human.pos);
+    const tileSize = this.human.scene.art!.tileSize;
+    const detachThresholdPx =
+      tileSize * FollowTheLeader.DETACH_DISTANCE_IN_TILES;
+
+    // Once follower is close enough to its assigned slot, let GoTo finish precisely.
+    if (
+      Math.abs(diff.x) <= detachThresholdPx &&
+      Math.abs(diff.y) <= detachThresholdPx
+    ) {
+      this.shouldDetach = true;
+      this.human.animations.play(`idle-stand-${this.human.direction}`);
+      return;
+    }
+
+    if (diff.x !== 0 || diff.y !== 0) {
+      const absX = Math.abs(diff.x);
+      const absY = Math.abs(diff.y);
+
+      if (absY > absX) {
+        this.human.direction = diff.y > 0 ? "s" : "n";
+      } else {
+        this.human.direction = diff.x > 0 ? "e" : "w";
+      }
+
+      if (!this.human.animations.isPlaying(`walk-${this.human.direction}`)) {
+        this.human.animations.play(`walk-${this.human.direction}`);
+      }
+    }
+    // } else {
+    //   this.human.animations.play(`idle-stand-${this.human.direction}`);
+    // }
+  }
+
+  isComplete(): boolean {
+    return !this.human.group.isWalking() || this.shouldDetach;
+  }
 }
 
 export class GoTo implements CommonUpdatable {
@@ -19,13 +129,14 @@ export class GoTo implements CommonUpdatable {
   readonly tag: "go-to" = GoTo.TAG;
   private path: Path | null;
   private human: Human;
-  private pos: Vec2;
+  private actualGoalPos: Vec2;
   private walkAnimBase: string;
   private idleAnimBase: string;
   private pathStartPos: Vec2;
   private pathGoalPos: Vec2;
-  private preApproach: AnimationSequence | null;
-  private finalApproach: AnimationSequence | null;
+  private startAlignSeq: AnimationSequence | null;
+  private endAlignSeq: AnimationSequence | null;
+  private hasPathPhaseFinished: boolean;
   private overlayFn?: (human: Human) => OverlayOptions;
 
   constructor(
@@ -39,11 +150,12 @@ export class GoTo implements CommonUpdatable {
   ) {
     this.human = human;
     this.path = null;
-    this.pos = pos;
+    this.actualGoalPos = { ...pos };
     this.pathStartPos = { ...human.pos };
-    this.pathGoalPos = pos;
-    this.preApproach = null;
-    this.finalApproach = null;
+    this.pathGoalPos = { ...pos };
+    this.startAlignSeq = null;
+    this.endAlignSeq = null;
+    this.hasPathPhaseFinished = false;
     this.walkAnimBase = animBase?.walk ?? "walk";
     this.idleAnimBase = animBase?.idle ?? "idle-stand";
     this.overlayFn = animBase?.overlayFn;
@@ -52,190 +164,75 @@ export class GoTo implements CommonUpdatable {
   init() {
     const scene = this.human.scene as Play;
     const tileSize = scene.art!.tileSize;
-    const roundedStartPos = {
-      x: Math.round(this.human.pos.x / tileSize) * tileSize,
-      y: Math.round(this.human.pos.y / tileSize) * tileSize,
-    };
-    const roundedStartCell = posToCell(roundedStartPos, tileSize);
 
-    let startCell = roundedStartCell;
-    if (scene.parkGrid[roundedStartCell.row]?.[roundedStartCell.col] !== 0) {
-      const freeCell = findClosestFreeCell(
-        roundedStartCell,
-        scene.parkGrid,
-        [0],
-      );
-      if (freeCell !== null) {
-        startCell = freeCell;
-      }
+    this.pathGoalPos = getNearestWholeTile(this.actualGoalPos, tileSize);
+    this.pathStartPos = isWholeTile(this.human.pos, tileSize)
+      ? { ...this.human.pos }
+      : getWholeTileTowardTarget(this.human.pos, this.actualGoalPos, tileSize);
+
+    this.startAlignSeq = this.buildMoveSequence(this.pathStartPos);
+
+    if (this.startAlignSeq !== null) {
+      this.startAlignSeq.start();
+    } else {
+      this.startPathPhase(scene);
     }
-    this.pathStartPos = cellToPos(startCell, tileSize);
-
-    const roundedGoalPos = {
-      x: Math.round(this.pos.x / tileSize) * tileSize,
-      y: Math.round(this.pos.y / tileSize) * tileSize,
-    };
-    const roundedGoalCell = posToCell(roundedGoalPos, tileSize);
-
-    let goalCell = roundedGoalCell;
-    if (scene.parkGrid[roundedGoalCell.row]?.[roundedGoalCell.col] !== 0) {
-      const freeCell = findClosestFreeCell(
-        roundedGoalCell,
-        scene.parkGrid,
-        [0],
-      );
-      if (freeCell !== null) {
-        goalCell = freeCell;
-      }
-    }
-
-    this.pathGoalPos = cellToPos(goalCell, tileSize);
-
-    if (isSamePos(this.human.pos, this.pathStartPos)) {
-      this.path = new Path(this.human, this.pathGoalPos, scene.parkGrid);
-    }
-
-    console.log(this.path);
-    console.log(posToCell(this.human.pos, this.human.scene.art!.tileSize));
   }
 
   update(dt: number): void {
     const scene = this.human.scene as Play;
 
-    if (this.path === null) {
-      if (
-        this.preApproach === null &&
-        !isSamePos(this.human.pos, this.pathStartPos)
-      ) {
-        const dx = this.pathStartPos.x - this.human.pos.x;
-        const dy = this.pathStartPos.y - this.human.pos.y;
-        const steps: ConstructorParameters<typeof AnimationSequence>[1] = [];
+    if (this.startAlignSeq !== null) {
+      this.startAlignSeq.update(dt);
 
-        if (dx !== 0) {
-          const xDir = dx > 0 ? "e" : "w";
-          this.human.direction = xDir;
-          steps.push(
-            AnimationSequence.createAnim({
-              anim: `${this.walkAnimBase}-${xDir}`,
-              type: TransitionType.Distance,
-              transition: { dx, dy: 0 },
-              options: {
-                overlay: this.overlayFn
-                  ? this.overlayFn(this.human)
-                  : undefined,
-              },
-            }),
-          );
-        }
-
-        if (dy !== 0) {
-          const yDir = dy > 0 ? "s" : "n";
-          this.human.direction = yDir;
-          steps.push(
-            AnimationSequence.createAnim({
-              anim: `${this.walkAnimBase}-${yDir}`,
-              type: TransitionType.Distance,
-              transition: { dx: 0, dy },
-              options: {
-                overlay: this.overlayFn
-                  ? this.overlayFn(this.human)
-                  : undefined,
-              },
-            }),
-          );
-        }
-
-        if (steps.length > 0) {
-          this.preApproach = new AnimationSequence(this.human, steps);
-          this.preApproach.start();
-        } else {
-          this.human.pos = { ...this.pathStartPos };
-          this.path = new Path(this.human, this.pathGoalPos, scene.parkGrid);
-        }
-      }
-
-      if (this.preApproach !== null) {
-        this.preApproach.update(dt);
-
-        if (this.preApproach.isFinished) {
-          this.human.pos = { ...this.pathStartPos };
-          this.preApproach = null;
-          this.path = new Path(this.human, this.pathGoalPos, scene.parkGrid);
-        }
+      if (this.startAlignSeq.isFinished) {
+        this.startAlignSeq = null;
+        this.startPathPhase(scene);
       }
 
       return;
     }
 
-    if (!this.path.hasReachedGoal) {
-      this.path.update(dt);
-      const animDirection = this.getAnimDirection();
+    if (!this.hasPathPhaseFinished) {
+      if (this.path !== null && !this.path.hasReachedGoal) {
+        this.path.update(dt);
+        const animDirection = this.getAnimDirection();
 
-      if (
-        !this.human.animations.isPlaying(
-          `${this.walkAnimBase}-${animDirection}`,
-        )
-      ) {
-        this.human.animations.play(`${this.walkAnimBase}-${animDirection}`, {
-          overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
-        });
+        if (
+          !this.human.animations.isPlaying(
+            `${this.walkAnimBase}-${animDirection}`,
+          )
+        ) {
+          this.human.animations.play(`${this.walkAnimBase}-${animDirection}`, {
+            overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+          });
+        }
+
+        return;
       }
+
+      this.hasPathPhaseFinished = true;
+      this.endAlignSeq = this.buildMoveSequence(this.actualGoalPos);
+
+      if (this.endAlignSeq !== null) {
+        this.endAlignSeq.start();
+      }
+
       return;
     }
 
-    if (this.finalApproach === null && !isSamePos(this.human.pos, this.pos)) {
-      const dx = this.pos.x - this.human.pos.x;
-      const dy = this.pos.y - this.human.pos.y;
-      const steps: ConstructorParameters<typeof AnimationSequence>[1] = [];
+    if (this.endAlignSeq !== null) {
+      this.endAlignSeq.update(dt);
 
-      if (dx !== 0) {
-        const xDir = dx > 0 ? "e" : "w";
-        this.human.direction = xDir;
-        steps.push(
-          AnimationSequence.createAnim({
-            anim: `${this.walkAnimBase}-${xDir}`,
-            type: TransitionType.Distance,
-            transition: { dx, dy: 0 },
-            options: {
-              overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
-            },
-          }),
-        );
+      if (this.endAlignSeq.isFinished) {
+        this.endAlignSeq = null;
       }
 
-      if (dy !== 0) {
-        const yDir = dy > 0 ? "s" : "n";
-        this.human.direction = yDir;
-        steps.push(
-          AnimationSequence.createAnim({
-            anim: `${this.walkAnimBase}-${yDir}`,
-            type: TransitionType.Distance,
-            transition: { dx: 0, dy },
-            options: {
-              overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
-            },
-          }),
-        );
-      }
-
-      if (steps.length > 0) {
-        this.finalApproach = new AnimationSequence(this.human, steps);
-        this.finalApproach.start();
-      }
+      return;
     }
 
-    if (this.finalApproach !== null) {
-      this.finalApproach.update(dt);
-
-      if (this.finalApproach.isFinished) {
-        this.human.pos.x = this.pos.x;
-        this.human.pos.y = this.pos.y;
-        this.finalApproach = null;
-      }
-    }
-
-    if (this.finalApproach === null) {
-      const animDirection = this.getAnimDirection();
+    const animDirection = this.getAnimDirection();
+    if (!this.human.animations.isPlaying(`${this.idleAnimBase}-${animDirection}`)) {
       this.human.animations.play(`${this.idleAnimBase}-${animDirection}`, {
         overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
       });
@@ -243,16 +240,74 @@ export class GoTo implements CommonUpdatable {
   }
 
   isComplete(): boolean {
-    if (this.path === null) return false;
-
-    if (this.preApproach !== null) return false;
-    if (!this.path.hasReachedGoal) return false;
-    if (this.finalApproach !== null) return false;
-    if (!isSamePos(this.human.pos, this.pos)) return false;
+    if (this.startAlignSeq !== null) return false;
+    if (!this.hasPathPhaseFinished) return false;
+    if (this.endAlignSeq !== null) return false;
+    if (!isSamePos(this.human.pos, this.actualGoalPos)) return false;
 
     return this.human.animations.isPlaying(
       `${this.idleAnimBase}-${this.getAnimDirection()}`,
     );
+  }
+
+  private startPathPhase(scene: Play): void {
+    if (!isSamePos(this.human.pos, this.pathStartPos)) {
+      return;
+    }
+
+    if (isSamePos(this.pathStartPos, this.pathGoalPos)) {
+      this.path = null;
+      this.hasPathPhaseFinished = true;
+      this.endAlignSeq = this.buildMoveSequence(this.actualGoalPos);
+      if (this.endAlignSeq !== null) {
+        this.endAlignSeq.start();
+      }
+      return;
+    }
+
+    this.path = new Path(this.human, this.pathGoalPos, scene.parkGrid);
+  }
+
+  private buildMoveSequence(target: Vec2): AnimationSequence | null {
+    if (isSamePos(this.human.pos, target)) return null;
+
+    const dx = target.x - this.human.pos.x;
+    const dy = target.y - this.human.pos.y;
+    const steps: ConstructorParameters<typeof AnimationSequence>[1] = [];
+
+    if (dx !== 0) {
+      const xDir = dx > 0 ? "e" : "w";
+      this.human.direction = xDir;
+      steps.push(
+        AnimationSequence.createAnim({
+          anim: `${this.walkAnimBase}-${xDir}`,
+          type: TransitionType.Distance,
+          transition: { dx, dy: 0 },
+          options: {
+            overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+          },
+        }),
+      );
+    }
+
+    if (dy !== 0) {
+      const yDir = dy > 0 ? "s" : "n";
+      this.human.direction = yDir;
+      steps.push(
+        AnimationSequence.createAnim({
+          anim: `${this.walkAnimBase}-${yDir}`,
+          type: TransitionType.Distance,
+          transition: { dx: 0, dy },
+          options: {
+            overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+          },
+        }),
+      );
+    }
+
+    if (steps.length === 0) return null;
+
+    return new AnimationSequence(this.human, steps);
   }
 
   private getAnimDirection(): "n" | "e" | "s" | "w" {
@@ -275,80 +330,41 @@ export class GoTo implements CommonUpdatable {
   }
 }
 
-export class ContinousAnim implements CommonUpdatable {
-  static TAG: "continous-anim" = "continous-anim";
-  readonly tag: "continous-anim" = ContinousAnim.TAG;
-
+export class StandIdle implements CommonUpdatable {
+  static TAG: "stand-idle" = "stand-idle";
+  readonly tag: "stand-idle" = StandIdle.TAG;
   private human: Human;
-  private anim: string;
+  private direction: Direction;
   private timer: Timer;
-  private duration: number;
-  private hasStarted: boolean;
+  private duration: number | null;
 
-  constructor(human: Human, anim: string, duration: number) {
+  constructor(
+    human: Human,
+    direction: Direction,
+    duration: number | null = null,
+  ) {
     this.human = human;
-    this.anim = anim;
+    this.human.action = this.tag;
+    this.direction = direction;
     this.duration = duration;
-    this.hasStarted = false;
-    this.human.animations.play(anim);
     this.timer = new Timer();
   }
 
-  init() {}
-
-  update(_: number): void {
-    if (!this.hasStarted) {
-      this.human.animations.play(this.anim);
+  init() {
+    if (this.duration !== null) {
       this.timer.start(this.duration);
     }
   }
 
-  isComplete(): boolean {
-    return this.hasStarted && this.timer.isStopped;
+  update(_: number): void {
+    if (!this.human.animations.isPlaying(`idle-stand-${this.direction}`)) {
+      this.human.direction = this.direction;
+      this.human.animations.play(`idle-stand-${this.direction}`);
+    }
   }
-}
-
-export class TransitionActionTick implements CommonUpdatable {
-  static TAG: "transition-tick" = "transition-tick";
-  readonly tag: "transition-tick" = TransitionActionTick.TAG;
-  private human: Human;
-  private anim: string;
-  action: ActionTag;
-
-  constructor(human: Human, anim: string, action: ActionTag) {
-    this.human = human;
-    this.anim = anim;
-    this.human.animations.play(anim);
-    this.action = action;
-  }
-
-  init() {}
-
-  update(_: number): void {}
 
   isComplete(): boolean {
-    return !this.human.animations.isPlaying(this.anim);
-  }
-}
-
-export class TransitionAnim implements CommonUpdatable {
-  static TAG: "transition-anim" = "transition-anim";
-  readonly tag: "transition-anim" = TransitionAnim.TAG;
-  private human: Human;
-  private anim: string;
-
-  constructor(human: Human, anim: string) {
-    this.human = human;
-    this.anim = anim;
-    this.human.animations.play(anim);
-  }
-
-  init() {}
-
-  update(_: number): void {}
-
-  isComplete(): boolean {
-    return !this.human.animations.isPlaying(this.anim);
+    return this.timer !== null && this.timer.isStopped;
   }
 }
 
@@ -356,27 +372,29 @@ export class SitOnBench implements CommonUpdatable {
   static TAG: "sit-bench" = "sit-bench";
   readonly tag: "sit-bench" = SitOnBench.TAG;
   private human: Human;
-  private timer: Timer | null;
+  private timer: Timer;
+  private duration: number | null;
+  private bench: Bench;
 
-  constructor(human: Human, durationMs: number | "ever") {
+  constructor(human: Human, bench: Bench, duration: number | null = null) {
     this.human = human;
     this.human.action = this.tag;
-    this.timer = null;
-
-    if (durationMs !== "ever") {
-      this.timer = new Timer();
-      this.timer.start(durationMs);
-    }
+    this.duration = duration;
+    this.bench = bench;
+    this.timer = new Timer();
   }
 
-  init() {}
-
-  update(_: number): void {
-    if (!this.human.animations.isPlaying("idle-sit-s")) {
-      this.human.direction = "s";
-      this.human.animations.play("idle-sit-s");
+  init() {
+    if (this.duration !== null) {
+      this.timer.start(this.duration);
     }
+
+    this.human.direction = "s";
+    this.human.animations.play("idle-sit-s");
+    this.human.pos.x = this.bench.pos.x;
+    this.human.pos.y = this.bench.pos.y + (this.human.tileSize / 4) * 3;
   }
+  update(_: number): void {}
 
   isComplete(): boolean {
     return this.timer !== null && this.timer.isStopped;
@@ -387,22 +405,27 @@ export class SitOnGrass implements CommonUpdatable {
   static TAG: "sit-grass" = "sit-grass";
   readonly tag: "sit-grass" = SitOnGrass.TAG;
   private human: Human;
-  private direction: "n" | "e" | "s" | "w";
-  private timer: Timer | null;
+  private direction: Direction;
+  private timer: Timer;
+  private duration: number | null;
 
-  constructor(human: Human, direction: Direction, durationMs: number | "ever") {
+  constructor(
+    human: Human,
+    direction: Direction,
+    duration: number | null = null,
+  ) {
     this.human = human;
     this.human.action = this.tag;
-    this.direction = SitOnGrass.toSitDirection(direction);
-    this.timer = null;
-
-    if (durationMs !== "ever") {
-      this.timer = new Timer();
-      this.timer.start(durationMs);
-    }
+    this.direction = direction;
+    this.duration = duration;
+    this.timer = new Timer();
   }
 
-  init() {}
+  init() {
+    if (this.duration !== null) {
+      this.timer.start(this.duration);
+    }
+  }
 
   update(_: number): void {
     if (!this.human.animations.isPlaying(`idle-sit-${this.direction}`)) {
@@ -414,33 +437,14 @@ export class SitOnGrass implements CommonUpdatable {
   isComplete(): boolean {
     return this.timer !== null && this.timer.isStopped;
   }
-
-  private static toSitDirection(dir: Direction): "n" | "e" | "s" | "w" {
-    switch (dir) {
-      case "n":
-      case "e":
-      case "s":
-      case "w":
-        return dir;
-      case "ne":
-      case "nw":
-        return "n";
-      case "se":
-      case "sw":
-        return "s";
-      default:
-        return "s";
-    }
-  }
 }
 
 const spec = {
   "go-to": { ctor: GoTo },
-  "transition-anim": { ctor: TransitionAnim },
-  "transition-tick": { ctor: TransitionActionTick },
-  "continous-anim": { ctor: ContinousAnim },
   "sit-bench": { ctor: SitOnBench },
   "sit-grass": { ctor: SitOnGrass },
+  "stand-idle": { ctor: StandIdle },
+  "follow-the-leader": { ctor: FollowTheLeader },
 } as const;
 
 export type CommonActionSpec = {

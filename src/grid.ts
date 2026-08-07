@@ -22,7 +22,7 @@ export function createGrid(
 
 export function findClosestFreeCell(
   from: Cell,
-  grid: (0 | 1)[][],
+  grid: any[][],
   walkableTileValues: number[] = [0],
 ) {
   const rows = grid.length;
@@ -54,7 +54,7 @@ export function findClosestFreeCell(
 }
 
 export function getRandomFreeCell(
-  grid: (0 | 1)[][],
+  grid: any[][],
   walkableTileValues: number[] = [0],
 ) {
   const freeCells: Cell[] = [];
@@ -81,7 +81,7 @@ export function createPathAStar(
   // if (!cellIsWithinBounds(to, grid))
   //   throw new Error("'to' cell is out of bounds");
 
-  // console.log(from, to);
+  console.log(from, to);
 
   if(isSameCell(from, to)) throw new Error("from cell and to cell are the same!")
   
@@ -165,7 +165,8 @@ export function createPathAStar(
   }
 
   if (!pathMap[to.row][to.col]) {
-    throw new Error("No path found!");
+    console.log(from, to)
+    throw new Error("No path found!", );
   }
 
   return reconstructPath(pathMap);

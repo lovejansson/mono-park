@@ -1,4 +1,5 @@
 import type { ActionTag } from "../actions.ts";
+import type Group from "../Group.ts";
 import Human, { PositionUpdateType, type AnimationSetting } from "../Human.ts";
 import type { OverlayOptions } from "../lib";
 import type { Direction, Vec2 } from "../lib/types";
@@ -17,7 +18,7 @@ export default class Skater extends Human {
   skatingAtPark: SkatingAtPark;
   obstacle: number | null;
   bench: number | null;
-  private initAction: ActionTag;
+  initAction: ActionTag;
 
   constructor(
     scene: Play,
@@ -25,8 +26,9 @@ export default class Skater extends Human {
     name: string,
     skill: Skill,
     initAction: ActionTag,
+     group: Group
   ) {
-    super(scene, pos, name);
+    super(scene, pos, name, group);
 
     this.skill = skill;
     this.skatingAtPark = new SkatingAtPark(this);

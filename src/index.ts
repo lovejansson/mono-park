@@ -17,7 +17,7 @@ const art = new Art({
   height: tilemap.height,
   tileSize: tilemap.tileSize,
   container: "#art-container",
-  displayGrid: false,
+  displayGrid: true,
 });
 
 (async () => {

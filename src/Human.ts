@@ -4,10 +4,8 @@ import {
   type ActionTag,
   type Updatable,
 } from "./actions";
-import PlayBall from "./ball/PlayBall";
-import Fika from "./cafe/Fika";
-import {  TransitionActionTick } from "./commonActions";
-import type GroupActivityCoordinator from "./GroupActivityCoordinator";
+import type Group from "./Group";
+
 import {  Sprite } from "./lib";
 import type { OverlayOptions } from "./lib";
 import type { Direction, Vec2 } from "./lib/types";
@@ -25,17 +23,20 @@ export default class Human extends Sprite {
   tileSize: number;
   action: ActionTag | null;
   currentAction!: Updatable;
+  group: Group;
 
   constructor(
     scene: Play,
     pos: Vec2,
     name: string,
+    group: Group
   ) {
-    super(scene, pos, 16, 32, "s");
+    super(scene, pos, 16, 32, "s" );
     this.name = name;
     this.tileSize = scene.art!.tileSize;
     this.action = null;
     this.drawOffset.y = -this.tileSize;
+      this.group = group;
   }
 
   init(): void {
@@ -84,16 +85,6 @@ export default class Human extends Sprite {
           break;
       }
     };
-
-
-    // Useful for debugging
-    // this.animations.onLoop = (anim: string, loopCount: number) => {
-    //   // console.log("LOOP", animation, loopCount);
-    // };
-
-    // this.animations.onComplete = (animation: string) => {
-    //   // console.log("COMPLETE", animation);
-    // };
   }
 
   update(dt: number): void {
@@ -103,6 +94,11 @@ export default class Human extends Sprite {
   isSitting(): boolean {
     const anim = this.animations.getPlaying();
     return anim !== null && anim.includes("idle-sit");
+  }
+
+  isIdle(): boolean  {
+    const anim = this.animations.getPlaying();
+    return anim !== null && anim.includes("idle");
   }
 
   protected transitionToAction<A extends ActionTag>(

@@ -15,11 +15,14 @@ import {
   type PlayBallActionSpec,
   ActionConstructors as PlayBallActionConstructors,
 } from "./ball/PlayBall";
+import { type StrollActionSpec, ActionConstructors as StrollActionConstructors
+
+ } from "./stroller/Stroll";
 
 export type ActionSpec = FikaActionSpec &
   SkateActionSpec &
   CommonActionSpec &
-  PlayBallActionSpec;
+  PlayBallActionSpec & StrollActionSpec;
 
 export type ActionTag = keyof ActionSpec;
 
@@ -45,6 +48,7 @@ function getRegistry(): Registry {
       ...FikaConstructors,
       ...CommonConstructors,
       ...PlayBallActionConstructors,
+      ...StrollActionConstructors
     } as Registry;
   }
   return registry;

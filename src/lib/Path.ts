@@ -20,20 +20,24 @@ export default class Path {
   cellCount: number;
 
   private currStart: Vec2;
+  private grid: any[][];
   private path: Cell[];
-  private currPathIdx;
-  private goalCell;
+  private currPathIdx: number;
+  private goalCell: Cell;
   private sprite: Sprite;
+  private walkableTileValues: number[];
 
-  constructor(sprite: Sprite, goal: Vec2, grid: (0 | 1)[][]) {
+  constructor(sprite: Sprite, goal: Vec2, grid: any[][], walkableTileValues?: number[]) {
     this.sprite = sprite;
+    this.grid = grid;
     this.goalCell = posToCell(goal, sprite.scene.art!.tileSize);
-
+    this.walkableTileValues = walkableTileValues ?? [0];
 
     this.path = createPathAStar(
       posToCell(this.sprite.pos, this.sprite.scene.art!.tileSize),
       this.goalCell,
-      grid,
+      this.getGridForPathfinding(),
+      this.walkableTileValues,
     );
 
     this.currStart = { ...this.sprite.pos };
@@ -51,6 +55,12 @@ export default class Path {
 
   update(_: number) {
     if (!this.hasReachedGoal) {
+      if (!this.ensurePathToNextCell()) {
+        this.sprite.vel.x = 0;
+        this.sprite.vel.y = 0;
+        return;
+      }
+
       this.updateVelocity();
       this.updateDirection();
 
@@ -104,5 +114,63 @@ export default class Path {
     const vel = this.calculateVelocity();
     this.sprite.vel.x = vel.x;
     this.sprite.vel.y = vel.y;
+  }
+
+  private ensurePathToNextCell(): boolean {
+    if (this.currPathIdx >= this.path.length - 1) {
+      throw new Error("Path invariant violated: no next cell available while path is still updating");
+    }
+
+    const nextCell = this.path[this.currPathIdx + 1];
+
+    if (
+      this.walkableTileValues.includes(this.grid[nextCell.row][nextCell.col]) ||
+      this.isGoalCell(nextCell)
+    ) {
+      return true;
+    }
+
+    return this.recalculatePath();
+  }
+
+  private recalculatePath(): boolean {
+    const currentCell = posToCell(this.sprite.pos, this.sprite.scene.art!.tileSize);
+
+    if (
+      currentCell.row === this.goalCell.row &&
+      currentCell.col === this.goalCell.col
+    ) {
+      this.hasReachedGoal = true;
+      this.sprite.path.hasReachedGoal = true;
+      return true;
+    }
+
+    try {
+      this.path = createPathAStar(
+        currentCell,
+        this.goalCell,
+        this.getGridForPathfinding(),
+        this.walkableTileValues,
+      );
+      this.currPathIdx = 0;
+      this.currStart = { ...this.sprite.pos };
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private getGridForPathfinding(): any[][] {
+    if (this.walkableTileValues.includes(this.grid[this.goalCell.row][this.goalCell.col])) {
+      return this.grid;
+    }
+
+    const grid = this.grid.map((row) => [...row]);
+    grid[this.goalCell.row][this.goalCell.col] = this.walkableTileValues[0] ?? 0;
+    return grid;
+  }
+
+  private isGoalCell(cell: Cell): boolean {
+    return cell.row === this.goalCell.row && cell.col === this.goalCell.col;
   }
 }

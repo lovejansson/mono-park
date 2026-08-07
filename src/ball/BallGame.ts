@@ -7,6 +7,8 @@ export type PlayerArea = {
   positions: Vec2[];
 };
 
+const BALL_PLAYER_DIFF = 10;
+
 export default class BallGame {
   private play: Play;
   private players: number[];
@@ -15,21 +17,45 @@ export default class BallGame {
   private ball: Ball;
   private playerAreas: (PlayerArea & { player: number | null })[];
   private passTargetPosByPlayer: Map<number, Vec2>;
+  private chillinPositions: Vec2[];
+  private chillPosState: Map<string, boolean>;
+  private playerIsInExchange: boolean;
 
   constructor(
     play: Play,
     ball: Ball,
-    startPlayer: number,
-    players: number[],
     playerAreas: PlayerArea[],
+    chillinPositions: Vec2[],
   ) {
-    this.playerWithBall = startPlayer;
+    this.playerWithBall = null;
     this.passTo = null;
     this.ball = ball;
     this.play = play;
-    this.players = players;
+    this.players = [];
     this.playerAreas = playerAreas.map((pa) => ({ ...pa, player: null }));
     this.passTargetPosByPlayer = new Map();
+    this.chillinPositions = chillinPositions;
+    this.chillPosState = new Map(
+      chillinPositions.map((p) => [this.chillPosKey(p), true]),
+    );
+
+    this.playerIsInExchange = false;
+  }
+
+  private chillPosKey(pos: Vec2): string {
+    return `${pos.x},${pos.y}`;
+  }
+
+  canQuit(): boolean {
+    return this.players.length > 2 && !this.playerIsInExchange;
+  }
+
+  canEnter(): boolean {
+    return this.players.length < 4 && !this.playerIsInExchange;
+  }
+
+  playerHasExchanged(): void {
+    this.playerIsInExchange = false;
   }
 
   enter(id: number): void {
@@ -44,6 +70,8 @@ export default class BallGame {
     this.players.push(id);
 
     playerArea.player = id;
+
+    this.playerIsInExchange = true;
   }
 
   quit(id: number): void {
@@ -51,20 +79,37 @@ export default class BallGame {
 
     if (idx === -1) throw new Error("No player found.");
 
-    const playerArea = this.playerAreas.find((pa) => pa.player === null);
+    const playerArea = this.playerAreas.find((pa) => pa.player === id);
 
     if (playerArea === undefined) throw new Error("Player not in game");
 
     this.players.splice(idx, 1);
     playerArea.player = null;
+    this.playerIsInExchange = true;
+  }
+
+  getChillPos(): Vec2 {
+    const p = this.chillinPositions.find(
+      (pos) => this.chillPosState.get(this.chillPosKey(pos)) === true,
+    );
+
+    if (p === undefined) throw new Error("No chill pos left!");
+
+    this.chillPosState.set(this.chillPosKey(p), false);
+
+    return p;
+  }
+
+  returnChillPos(pos: Vec2): void {
+    const p = this.chillinPositions.find((p) => isSamePos(p, pos));
+
+    if (p === undefined) throw new Error("Chill pos not found!");
+
+    this.chillPosState.set(this.chillPosKey(p), true);
   }
 
   isPlaying(id: number): boolean {
     return this.players.find((p) => p === id) !== undefined;
-  }
-
-  numberOfPlayers(): number {
-    return this.players.length;
   }
 
   getRandomPlayer(me: number): number {
@@ -84,7 +129,7 @@ export default class BallGame {
 
     if (playerIdx === -1) throw new Error("No player found.");
 
-    const playerArea = this.playerAreas.find((pa) => pa.player === null);
+    const playerArea = this.playerAreas.find((pa) => pa.player === id);
 
     if (playerArea === undefined) throw new Error("Player not in game");
 
@@ -99,6 +144,28 @@ export default class BallGame {
     return id === this.playerWithBall;
   }
 
+  setPlayerWithBall(id: number): void {
+    this.playerWithBall = id;
+    const player = this.play.getHuman(id);
+
+    switch (player.direction) {
+      case "n":
+        this.ball.pos = { x: player.pos.x, y: player.pos.y - BALL_PLAYER_DIFF };
+        break;
+      case "e":
+        this.ball.pos = { x: player.pos.x + BALL_PLAYER_DIFF, y: player.pos.y };
+        break;
+      case "s":
+        this.ball.pos = { x: player.pos.x, y: player.pos.y + BALL_PLAYER_DIFF };
+        break;
+      case "w":
+        this.ball.pos = { x: player.pos.x - BALL_PLAYER_DIFF, y: player.pos.y };
+        break;
+      default:
+        throw new Error("Invalid player area direction");
+    }
+  }
+
   getPassTargetPos(id: number): Vec2 | null {
     const pos = this.passTargetPosByPlayer.get(id);
     return pos ? { ...pos } : null;
@@ -111,20 +178,18 @@ export default class BallGame {
     let areaPos = randomEl(playerArea.positions)!;
     let pos = { ...areaPos };
 
-    const tileSize = this.play.tileSize;
-
     switch (facing) {
       case "n":
-        pos = { x: areaPos.x, y: areaPos.y - tileSize / 2 };
+        pos = { x: areaPos.x, y: areaPos.y - BALL_PLAYER_DIFF };
         break;
       case "e":
-        pos = { x: areaPos.x + tileSize / 2, y: areaPos.y };
+        pos = { x: areaPos.x + BALL_PLAYER_DIFF, y: areaPos.y };
         break;
       case "s":
-        pos = { x: areaPos.x, y: areaPos.y + tileSize / 2 };
+        pos = { x: areaPos.x, y: areaPos.y + BALL_PLAYER_DIFF };
         break;
       case "w":
-        pos = { x: areaPos.x - tileSize / 2, y: areaPos.y };
+        pos = { x: areaPos.x - BALL_PLAYER_DIFF, y: areaPos.y };
         break;
       default:
         throw new Error("Invalid player area direction");
@@ -173,10 +238,9 @@ export class Ball extends Sprite {
     this.animations.onFrameChange = (_: string) => {
       if (this.state.isInAir) {
         const posChange = roundToDecimal(
-          easeOut(this.state.t / this.state.duration, 2),
+          easeOut(this.state.t / this.state.duration, 4),
           2,
         );
-        // easeOut(this.state.t / this.state.duration, 2);
 
         const arcOffset =
           (Math.sin(posChange * Math.PI) * this.scene.art!.tileSize) / 2;
