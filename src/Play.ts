@@ -39,6 +39,7 @@ import missyJSON from "./assets/spritesheets/missy-base.json";
 import sashaJSON from "./assets/spritesheets/sasha-base.json";
 
 import ballJSON from "./assets/spritesheets/ball.json";
+import duckJSON from "./assets/spritesheets/duck.json";
 import foodsCafeJSON from "./assets/spritesheets/foods.json";
 import { type AsepriteJSON } from "./lib/index";
 import { Door } from "./cafe/House.ts";
@@ -50,6 +51,17 @@ import BallGame, { Ball, type PlayerArea } from "./ball/BallGame.ts";
 import Baller from "./ball/Baller.ts";
 import Group from "./Group.ts";
 import Stroller from "./stroller/Stroller.ts";
+import Duck from "./ducks/Duck.ts";
+
+export enum GroundArea {
+  GRASS,
+  NOT_WALKABLE,
+  GRAVEL,
+  BRICKS,
+  SKATE_GROUND,
+  POND,
+  OOCUPIED
+}
 
 export enum StrollSpot {
   CACTUSES,
@@ -65,12 +77,12 @@ type StrollSpotData = {
 };
 
 type StrollSpotState = Map<string, boolean>;
-type OccupiedCellState = Map<string, 0 | 1 | 2>;
+type OccupiedCellState = Map<string, GroundArea>;
 
 export default class Play extends Scene {
   private tilemap: Tilemap;
   public obstacles: Obstacle[];
-  public parkGrid: (0 | 1 | 2)[][];
+  public parkGrid: GroundArea[][];
   private skaters!: Skater[];
   private humans: Human[];
   public tileSize: number;
@@ -156,8 +168,8 @@ export default class Play extends Scene {
     return { pos: spotPos.pos, direction: spotPos.direction };
   }
 
-  isTileWalkable(tile: Cell): boolean {
-    return this.parkGrid[tile.row][tile.col] === 0;
+  isTileWalkable(tile: Cell, walkableTiles: GroundArea[] = [GroundArea.GRASS]): boolean {
+    return walkableTiles.includes(this.parkGrid[tile.row][tile.col]);
   }
 
   occupyCell(pos: Vec2): void {
@@ -168,7 +180,7 @@ export default class Play extends Scene {
       this.occupiedCellState.set(key, this.parkGrid[row][col]);
     }
 
-    this.parkGrid[row][col] = 1;
+    this.parkGrid[row][col] = GroundArea.NOT_WALKABLE;
   }
 
   unoccupyCell(pos: Vec2): void {
@@ -264,6 +276,7 @@ export default class Play extends Scene {
     this.loadSprite("door-cafe", doorCafeJSON as AsepriteJSON);
     this.loadSprite("foods", foodsCafeJSON as AsepriteJSON);
     this.loadSprite("ball", ballJSON as AsepriteJSON);
+      this.loadSprite("duck", duckJSON as AsepriteJSON);
 
     this.loadBallerSprite(
       "linda",
@@ -343,12 +356,16 @@ export default class Play extends Scene {
     for (const t of this.tilemap.attributes) {
       const isSkateGround = t.attributes.isSkateGround === true;
       const isWalkable = t.attributes.isWalkable === true;
-      const isPlayerArea = t.attributes.isPlayerArea === true;
+      const isBallerArea = t.attributes.isBallerArea === true;
       const isBallerChillPos = t.attributes.isBallerChillPos === true;
       const isGrassByThePond = t.attributes.isGrassByThePond === true;
       const isCactusSpot = t.attributes.isCactusSpot === true;
       const isSkateSpot = t.attributes.isSkateSpot === true;
-      const isSkateSpotLeft = t.attributes.isSkateSpotLeft === true;
+      const isPond = t.attributes.isPond === true;
+
+      if(isPond) {
+         this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] = GroundArea.POND;
+      }
 
       if (isGrassByThePond && t.attributes.spotDirection) {
         this.pushSpot(
@@ -358,44 +375,28 @@ export default class Play extends Scene {
         );
       }
 
-      if (isCactusSpot && t.attributes.spotDirection) {
-        this.pushSpot(
-          StrollSpot.CACTUSES,
-          t.pos,
-          t.attributes.spotDirection as Direction,
-        );
+      if (isCactusSpot) {
+        this.pushSpot(StrollSpot.CACTUSES, t.pos, "n");
       }
 
-      if (isSkateSpot && t.attributes.spotDirection) {
-        this.pushSpot(
-          StrollSpot.SKATE_GROUND,
-          t.pos,
-          t.attributes.spotDirection as Direction,
-        );
-      }
-
-      if (isSkateSpotLeft && t.attributes.spotDirection) {
-        this.pushSpot(
-          StrollSpot.SKATE_GROUND_LEFT,
-          t.pos,
-          t.attributes.spotDirection as Direction,
-        );
+      if (isSkateSpot) {
+        this.pushSpot(StrollSpot.SKATE_GROUND, t.pos, "e");
       }
 
       if (isBallerChillPos) {
         ballerChillPositions.push(t.pos);
       }
 
-      if (isSkateGround || isWalkable) {
-        this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] = 0;
+      if (isWalkable) {
+        this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] = GroundArea.GRASS;
       }
 
       if (isSkateGround) {
-        this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] = 2;
+        this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] = GroundArea.SKATE_GROUND;
       }
 
-      if (isPlayerArea) {
-        const direction = t.attributes.playerAreaDirection;
+      if (isBallerArea) {
+        const direction = t.attributes.ballerDirection;
 
         if (direction === undefined)
           throw new Error("No direction for player area");
@@ -431,11 +432,11 @@ export default class Play extends Scene {
 
       for (let r = startRow; r < endRow; ++r) {
         for (let c = startCol; c < endCol; ++c) {
-          this.parkGrid[r][c] = 1;
+          this.parkGrid[r][c] = GroundArea.NOT_WALKABLE;
         }
       }
     }
-
+    console.dir(this.parkGrid);
     this.tables = new Tables(this.objects.filter((o) => o instanceof Table));
 
     await this.art!.images.load();
@@ -448,6 +449,14 @@ export default class Play extends Scene {
     ball.init();
 
     this.addObject(ball);
+
+    const duck = new Duck(this, {x: 4 * this.art.tileSize, y: 8 * this.art.tileSize});
+
+    duck.init();
+
+    this.addObject(duck);
+
+
 
     this.ballGame = new BallGame(this, ball, playerAreas, ballerChillPositions);
 
@@ -512,10 +521,9 @@ export default class Play extends Scene {
     const grls = new Group(this, [
       StrollSpot.GRASS_BY_THE_POND,
       StrollSpot.CACTUSES,
-     StrollSpot.SKATE_GROUND_LEFT,
+      StrollSpot.SKATE_GROUND_LEFT,
       StrollSpot.GRASS_BY_THE_POND,
       StrollSpot.CACTUSES,
-    
     ]);
 
     this.humans.push(
@@ -563,7 +571,7 @@ export default class Play extends Scene {
     }
 
     const skaters = new Group(this, []);
-    console.dir(this.parkGrid);
+
     this.pushSkater(
       new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl", skaters),
     );

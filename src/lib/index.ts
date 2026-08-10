@@ -21,7 +21,7 @@ export { default as Sprite } from "./objects/Sprite.ts";
 export { default as Scene } from "./Scene.ts";
 export { default as ArtObject } from "./objects/ArtObject.ts";
 export { default as SpritesheetsManager } from "./SpritesheetsManager.ts";
-export { type Vec2, type Direction, type Cell } from "./types.ts";
+export { type Vec2, type Direction, type Cell, type RelativeDirection } from "./types.ts";
 
 export {
   type AsepriteJSON,

@@ -2,14 +2,13 @@ import Art from "./Art.ts";
 import type ArtObject from "./objects/ArtObject.ts";
 
 export default abstract class Scene {
-  art: Art | null;
+  art!: Art; // Will be set when scene is initialized, using ! to avoid null checks all over
   objects: ArtObject[];
 
   constructor() {
     if (new.target === Scene) {
       throw new TypeError("Cannot construct Scene instances directly");
     }
-    this.art = null; // Will be set by the Art class on initialization
     this.objects = [];
   }
 

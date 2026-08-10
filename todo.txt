@@ -62,9 +62,5 @@ Kollisionshantering
 - Det är enbart när humans har valt en fast plats som platsen markeras ut som upptagen, det är så att inga paths skapas just genom den tilen. 
 
 - Ankorna kommer i huvudsak vara i dammen, men de går ibland på land runt dammen, det kommer inte vara några ankor just där människorna går.
-- Ankorna kommer hantera sin kollision separat genom att morsan styr riktning och ungarna hakar på, farsan circulerar på avstånd för att hålla koll på läget, alterantivt är det en ankflock utan ungar 
-som rör sig at random och hanterar kollision genom att reservera nästa tile hela tiden?
-- Ankor rör sig bort från människor
-- Ankor rör sig runt ponden 
-- Ankor har en preferens för sin grupp av ankor
-- Ankor i familj är tillsammans
+- Ankorna kommer röra sig randomly men med ett litet bias att välja sin nuvarande direction x antal tiles, den kommer reservera en tile framför sig så en tile är reserverad hela tiden och kan inte väljas av andra ankor, 
+om den kommer att bli fast så väntar den i 16 frame updates innan den fortsätter igen. 
