@@ -73,10 +73,9 @@ export default class Renderer {
      */
 
     if (this.art.isPlaying) {
-
-    this.updateSceneAnimations(this.playScene, dt);
+      this.updateSceneAnimations(this.playScene, dt);
       this.playScene.update(dt);
-  
+
       this.drawSceneCanvasObjects(this.playScene);
       if (this.art.displayGrid) {
         this.drawGrid(
@@ -88,7 +87,7 @@ export default class Renderer {
         );
       }
     } else {
-     this.updateSceneAnimations(this.pauseScene, dt);
+      this.updateSceneAnimations(this.pauseScene, dt);
       this.pauseScene.update(dt);
       this.drawSceneCanvasObjects(this.pauseScene);
     }

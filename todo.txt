@@ -1,66 +1,23 @@
 # Todo 
 
-- create fika items
-- make sure fika items looks good on the table when rendered!
-- Movements of ducks 
-- Drawing ducks 
-- Handling path movement collisions 
-- Feeding ducks
-
-- Creating a complete day sim for all the groups that are visiting the park
-
-skate / ballers gruppen som också går och fikar / strosar i parken / köper saker i vending machine?
-
-börja på duck sim
-
-
-
------------ Ballers group 
-
-
-Fixa gå till fik tillsammans. 
-
-        
------------- Skaters 
-
-6 stycken 
-
-Will just skate all of the time?
-
-Go to vending machine 
-
-visit café
-
-
----------------- Couple 
-
-2 st 
-
-sit at pond bench place 
-
-strolling
-
-visit café
-
------- Grl gang 
-
-3 st
-
-sit around the pond 
-
-strolling 
-
-visit café 
+- Stroll walk finish bug Fixa
+- Skate place finish bug fix 
+- Cafe state for a group 
+- Sit and test everything så att det funkar och inte kastar fel för minst x antal timmar 
 
 
 Kollisionshantering 
 
 - Grupper håller sig oftast inom sina områden, om de ska gå iväg så är det 1 moving group i taget vilket undviker kollisioner av grupper. 
+
 - Inom varje grupps yta, framförallt skaters och ballers så hanteras också kollisioner genom att det bara är en som cruisar i taget och en som är på ett hinder i taget
+
 - När grupperna går så ska de antingen bara följa olika mål targets runt det stället dom ska gå, eller så ska de använda follow the leader pattern. Oklart ännu 
 - Arrival och start för hur grupperna går måste hanteras separat så att de inte krockar visuellt
+
 - Det är enbart när humans har valt en fast plats som platsen markeras ut som upptagen, det är så att inga paths skapas just genom den tilen. 
 
 - Ankorna kommer i huvudsak vara i dammen, men de går ibland på land runt dammen, det kommer inte vara några ankor just där människorna går.
+
 - Ankorna kommer röra sig randomly men med ett litet bias att välja sin nuvarande direction x antal tiles, den kommer reservera en tile framför sig så en tile är reserverad hela tiden och kan inte väljas av andra ankor, 
 om den kommer att bli fast så väntar den i 16 frame updates innan den fortsätter igen. 

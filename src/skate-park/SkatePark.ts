@@ -623,7 +623,7 @@ class RailTricks implements SkateUpdatable {
 
           const closestCell = findClosestFreeCell(
             currCell,
-            (this.skater.scene as Play).parkGrid,
+            (this.skater.scene as Play).getWalkabilityGrid(),
             [2],
           );
 
@@ -1024,7 +1024,7 @@ class BowlTricks implements SkateUpdatable {
 
           const closestCell = findClosestFreeCell(
             currCell,
-            (this.skater.scene as Play).parkGrid,
+            (this.skater.scene as Play).getWalkabilityGrid(),
             [2],
           );
 

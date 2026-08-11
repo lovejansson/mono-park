@@ -1,6 +1,5 @@
 import type { Updatable } from "./actions";
-import type Human from "./Human";
-import type { Vec2 } from "./lib";
+import type { Sprite, Vec2 } from "./lib";
 import type { Direction } from "./lib/types";
 import { AnimationSequence, getPosDiff, TransitionType } from "./lib";
 import type { OverlayOptions } from "./lib";
@@ -9,6 +8,7 @@ import type Play from "./Play";
 import Timer from "./Timer";
 import { isSamePos } from "./lib";
 import type Bench from "./Bench";
+import type Human from "./Human";
 
 export interface CommonUpdatable extends Updatable {
   readonly tag: CommonActionTag;
@@ -128,7 +128,7 @@ export class GoTo implements CommonUpdatable {
   static TAG: "go-to" = "go-to";
   readonly tag: "go-to" = GoTo.TAG;
   private path: Path | null;
-  private human: Human;
+  private sprite: Sprite;
   private actualGoalPos: Vec2;
   private walkAnimBase: string;
   private idleAnimBase: string;
@@ -137,18 +137,18 @@ export class GoTo implements CommonUpdatable {
   private startAlignSeq: AnimationSequence | null;
   private endAlignSeq: AnimationSequence | null;
   private hasPathPhaseFinished: boolean;
-  private overlayFn?: (human: Human) => OverlayOptions;
+  private overlayFn?: (sprite: Sprite) => OverlayOptions;
 
   constructor(
-    human: Human,
+    human: Sprite,
     pos: Vec2,
     animBase?: {
       walk: string;
       idle: string;
-      overlayFn?: (human: Human) => OverlayOptions;
+      overlayFn?: (sprite: Sprite) => OverlayOptions;
     },
   ) {
-    this.human = human;
+    this.sprite = human;
     this.path = null;
     this.actualGoalPos = { ...pos };
     this.pathStartPos = { ...human.pos };
@@ -162,13 +162,13 @@ export class GoTo implements CommonUpdatable {
   }
 
   init() {
-    const scene = this.human.scene as Play;
+    const scene = this.sprite.scene as Play;
     const tileSize = scene.art!.tileSize;
 
     this.pathGoalPos = getNearestWholeTile(this.actualGoalPos, tileSize);
-    this.pathStartPos = isWholeTile(this.human.pos, tileSize)
-      ? { ...this.human.pos }
-      : getWholeTileTowardTarget(this.human.pos, this.actualGoalPos, tileSize);
+    this.pathStartPos = isWholeTile(this.sprite.pos, tileSize)
+      ? { ...this.sprite.pos }
+      : getWholeTileTowardTarget(this.sprite.pos, this.actualGoalPos, tileSize);
 
     this.startAlignSeq = this.buildMoveSequence(this.pathStartPos);
 
@@ -180,7 +180,7 @@ export class GoTo implements CommonUpdatable {
   }
 
   update(dt: number): void {
-    const scene = this.human.scene as Play;
+    const scene = this.sprite.scene as Play;
 
     if (this.startAlignSeq !== null) {
       this.startAlignSeq.update(dt);
@@ -199,12 +199,12 @@ export class GoTo implements CommonUpdatable {
         const animDirection = this.getAnimDirection();
 
         if (
-          !this.human.animations.isPlaying(
+          !this.sprite.animations.isPlaying(
             `${this.walkAnimBase}-${animDirection}`,
           )
         ) {
-          this.human.animations.play(`${this.walkAnimBase}-${animDirection}`, {
-            overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+          this.sprite.animations.play(`${this.walkAnimBase}-${animDirection}`, {
+            overlay: this.overlayFn ? this.overlayFn(this.sprite) : undefined,
           });
         }
 
@@ -232,9 +232,9 @@ export class GoTo implements CommonUpdatable {
     }
 
     const animDirection = this.getAnimDirection();
-    if (!this.human.animations.isPlaying(`${this.idleAnimBase}-${animDirection}`)) {
-      this.human.animations.play(`${this.idleAnimBase}-${animDirection}`, {
-        overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+    if (!this.sprite.animations.isPlaying(`${this.idleAnimBase}-${animDirection}`)) {
+      this.sprite.animations.play(`${this.idleAnimBase}-${animDirection}`, {
+        overlay: this.overlayFn ? this.overlayFn(this.sprite) : undefined,
       });
     }
   }
@@ -243,15 +243,15 @@ export class GoTo implements CommonUpdatable {
     if (this.startAlignSeq !== null) return false;
     if (!this.hasPathPhaseFinished) return false;
     if (this.endAlignSeq !== null) return false;
-    if (!isSamePos(this.human.pos, this.actualGoalPos)) return false;
+    if (!isSamePos(this.sprite.pos, this.actualGoalPos)) return false;
 
-    return this.human.animations.isPlaying(
+    return this.sprite.animations.isPlaying(
       `${this.idleAnimBase}-${this.getAnimDirection()}`,
     );
   }
 
   private startPathPhase(scene: Play): void {
-    if (!isSamePos(this.human.pos, this.pathStartPos)) {
+    if (!isSamePos(this.sprite.pos, this.pathStartPos)) {
       return;
     }
 
@@ -265,26 +265,26 @@ export class GoTo implements CommonUpdatable {
       return;
     }
 
-    this.path = new Path(this.human, this.pathGoalPos, scene.parkGrid);
+    this.path = new Path(this.sprite, this.pathGoalPos, scene.parkGrid);
   }
 
   private buildMoveSequence(target: Vec2): AnimationSequence | null {
-    if (isSamePos(this.human.pos, target)) return null;
+    if (isSamePos(this.sprite.pos, target)) return null;
 
-    const dx = target.x - this.human.pos.x;
-    const dy = target.y - this.human.pos.y;
+    const dx = target.x - this.sprite.pos.x;
+    const dy = target.y - this.sprite.pos.y;
     const steps: ConstructorParameters<typeof AnimationSequence>[1] = [];
 
     if (dx !== 0) {
       const xDir = dx > 0 ? "e" : "w";
-      this.human.direction = xDir;
+      this.sprite.direction = xDir;
       steps.push(
         AnimationSequence.createAnim({
           anim: `${this.walkAnimBase}-${xDir}`,
           type: TransitionType.Distance,
           transition: { dx, dy: 0 },
           options: {
-            overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+            overlay: this.overlayFn ? this.overlayFn(this.sprite) : undefined,
           },
         }),
       );
@@ -292,14 +292,14 @@ export class GoTo implements CommonUpdatable {
 
     if (dy !== 0) {
       const yDir = dy > 0 ? "s" : "n";
-      this.human.direction = yDir;
+      this.sprite.direction = yDir;
       steps.push(
         AnimationSequence.createAnim({
           anim: `${this.walkAnimBase}-${yDir}`,
           type: TransitionType.Distance,
           transition: { dx: 0, dy },
           options: {
-            overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+            overlay: this.overlayFn ? this.overlayFn(this.sprite) : undefined,
           },
         }),
       );
@@ -307,11 +307,11 @@ export class GoTo implements CommonUpdatable {
 
     if (steps.length === 0) return null;
 
-    return new AnimationSequence(this.human, steps);
+    return new AnimationSequence(this.sprite, steps);
   }
 
   private getAnimDirection(): "n" | "e" | "s" | "w" {
-    switch (this.human.direction) {
+    switch (this.sprite.direction) {
       case "n":
       case "ne":
       case "nw":

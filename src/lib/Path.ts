@@ -122,9 +122,13 @@ export default class Path {
     }
 
     const nextCell = this.path[this.currPathIdx + 1];
+    const nextCellGroundIsWalkable = this.walkableTileValues.includes(
+      this.grid[nextCell.row][nextCell.col],
+    );
+    const nextCellIsOccupied = this.isCellOccupied(nextCell);
 
     if (
-      this.walkableTileValues.includes(this.grid[nextCell.row][nextCell.col]) ||
+      (nextCellGroundIsWalkable && !nextCellIsOccupied) ||
       this.isGoalCell(nextCell)
     ) {
       return true;
@@ -161,13 +165,47 @@ export default class Path {
   }
 
   private getGridForPathfinding(): any[][] {
-    if (this.walkableTileValues.includes(this.grid[this.goalCell.row][this.goalCell.col])) {
-      return this.grid;
+    const grid = this.grid.map((row) => [...row]);
+    const occupiedBlockedValue = this.getOccupiedBlockedValue();
+
+    for (let row = 0; row < grid.length; ++row) {
+      for (let col = 0; col < grid[row].length; ++col) {
+        if (
+          row === this.goalCell.row &&
+          col === this.goalCell.col
+        ) {
+          continue;
+        }
+
+        if (this.isCellOccupied({ row, col })) {
+          grid[row][col] = occupiedBlockedValue;
+        }
+      }
     }
 
-    const grid = this.grid.map((row) => [...row]);
-    grid[this.goalCell.row][this.goalCell.col] = this.walkableTileValues[0] ?? 0;
+    if (!this.walkableTileValues.includes(this.grid[this.goalCell.row][this.goalCell.col])) {
+      grid[this.goalCell.row][this.goalCell.col] = this.walkableTileValues[0] ?? 0;
+    }
+
     return grid;
+  }
+
+  private isCellOccupied(cell: Cell): boolean {
+    const scene = this.sprite.scene as {
+      isCellOccupied?: (tile: Cell) => boolean;
+    };
+
+    return scene.isCellOccupied?.(cell) ?? false;
+  }
+
+  private getOccupiedBlockedValue(): number {
+    let value = -1;
+
+    while (this.walkableTileValues.includes(value)) {
+      value -= 1;
+    }
+
+    return value;
   }
 
   private isGoalCell(cell: Cell): boolean {
