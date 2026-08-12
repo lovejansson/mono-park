@@ -73,7 +73,7 @@ export function getRandomFreeCell(
 export function createPathAStar(
   from: Cell,
   to: Cell,
-  grid: (0 | 1)[][],
+  grid: any[][],
   walkableTileValues: number[] = [0],
 ): Cell[] {
   // if (!cellIsWithinBounds(from, grid))
@@ -81,7 +81,7 @@ export function createPathAStar(
   // if (!cellIsWithinBounds(to, grid))
   //   throw new Error("'to' cell is out of bounds");
 
-  console.log(from, to);
+  // console.log(from, to);
 
   if(isSameCell(from, to)) throw new Error("from cell and to cell are the same!")
   

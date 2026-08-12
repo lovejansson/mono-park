@@ -1,6 +1,5 @@
 import { createAction, type Updatable } from "../actions.ts";
 import {
-  FollowTheLeader,
   GoTo,
   SitOnBench,
   SitOnGrass,
@@ -32,11 +31,16 @@ export default class Stroll implements StrollUpdatable {
       this.strollSpot = this.human.group.getStrollSpot();
       this.human.group.startWalk(this.human.id);
       this.assignNextSpotPos();
-      this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos);
+
+      this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos, false);
+      this.getScene().occupyTile(this.spotPos.pos);
     } else {
       this.strollSpot = this.human.group.getStrollSpot();
       this.assignNextSpotPos();
-      this.transitionToAction(FollowTheLeader.TAG, this.human);
+
+      this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos, false);
+      console.log(this.human.name, this.spotPos);
+      this.getScene().occupyTile(this.spotPos.pos);
     }
   }
 
@@ -44,15 +48,15 @@ export default class Stroll implements StrollUpdatable {
     if (this.currAction === null)
       throw new Error(`State ${Stroll.TAG} not initialized! Call init().`);
 
-    if (
-      this.human.group.isWalking() &&
-      this.currAction.tag !== FollowTheLeader.TAG &&
-      this.currAction.tag !== GoTo.TAG
-    ) {
+    if (this.human.group.isWalking() && this.currAction.tag !== GoTo.TAG) {
       this.returnSpotPos();
+      this.getScene().unoccupyTile(this.spotPos.pos);
       this.strollSpot = this.human.group.getStrollSpot();
       this.assignNextSpotPos();
-      this.transitionToAction(FollowTheLeader.TAG, this.human);
+      this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos, false);
+
+      this.getScene().occupyTile(this.spotPos.pos);
+      return;
     }
 
     if (this.currAction.isComplete()) {
@@ -67,7 +71,6 @@ export default class Stroll implements StrollUpdatable {
 
           switch (this.strollSpot) {
             case StrollSpot.CACTUSES:
-              this.getScene().occupyCell(this.human.pos);
               this.transitionToAction(
                 StandIdle.TAG,
                 this.human,
@@ -75,8 +78,7 @@ export default class Stroll implements StrollUpdatable {
                 TEN_SECONDS * 3,
               );
               break;
-            case StrollSpot.SKATE_GROUND_LEFT:
-              this.getScene().occupyCell(this.human.pos);
+            case StrollSpot.SKATE_GROUND:
               this.transitionToAction(
                 StandIdle.TAG,
                 this.human,
@@ -85,7 +87,6 @@ export default class Stroll implements StrollUpdatable {
               );
               break;
             case StrollSpot.GRASS_BY_THE_POND:
-              this.getScene().occupyCell(this.human.pos);
               this.transitionToAction(
                 SitOnGrass.TAG,
                 this.human,
@@ -93,24 +94,43 @@ export default class Stroll implements StrollUpdatable {
                 TEN_SECONDS * 3,
               );
               break;
+            case StrollSpot.POND_BENCH:
+              const pondBench = this.getScene().benches.find(
+                (b) => !b.isAtSkatePark,
+              );
+
+              if (pondBench === undefined) {
+                throw new Error("Pond bench not found");
+              }
+
+              this.transitionToAction(
+                SitOnBench.TAG,
+                this.human,
+                pondBench,
+                TEN_SECONDS * 3,
+              );
+              break;
           }
           break;
-        case FollowTheLeader.TAG:
-          this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos);
-          break;
+
         case SitOnBench.TAG:
         case SitOnGrass.TAG:
         case StandIdle.TAG:
           if (!this.human.group.isWalking()) {
-            this.getScene().unoccupyCell(this.human.pos);
+            this.getScene().unoccupyTile(this.spotPos.pos);
             this.returnSpotPos();
+
             this.human.group.nextStrollSpot();
             this.strollSpot = this.human.group.getStrollSpot();
             this.human.group.startWalk(this.human.id);
-
             this.assignNextSpotPos();
-
-            this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos);
+            this.transitionToAction(
+              GoTo.TAG,
+              this.human,
+              this.spotPos.pos,
+              false,
+            );
+            this.getScene().occupyTile(this.spotPos.pos);
           }
           break;
       }
@@ -133,7 +153,6 @@ export default class Stroll implements StrollUpdatable {
   private getScene(): Play {
     return this.human.scene as Play;
   }
-
   private returnSpotPos(): void {
     this.getScene().returnStrollPos(this.strollSpot, this.spotPos.pos);
   }

@@ -11,7 +11,12 @@ import {
 } from "../lib";
 import type Play from "../Play";
 import { GroundArea } from "../Play";
-import Timer, { ONE_MINUTE, ONE_SECOND, TEN_SECONDS, THIRTY_SECONDS } from "../Timer";
+import Timer, {
+  ONE_MINUTE,
+  ONE_SECOND,
+  TEN_SECONDS,
+  THIRTY_SECONDS,
+} from "../Timer";
 import type Duck from "./Duck";
 
 export class RandomWalk implements DuckWalkUpdatable {
@@ -80,7 +85,7 @@ export class RandomWalk implements DuckWalkUpdatable {
 
     if (neighbourState.f.isFree) {
       this.duck.direction = neighbourState.f.dir;
-      play.occupyCell(
+      play.occupyTile(
         cellToPos(
           {
             col: duckTile.col + neighbourState.f.vec.x,
@@ -91,7 +96,7 @@ export class RandomWalk implements DuckWalkUpdatable {
       );
     } else if (neighbourState.r.isFree) {
       this.duck.direction = neighbourState.r.dir;
-      play.occupyCell(
+      play.occupyTile(
         cellToPos(
           {
             col: duckTile.col + neighbourState.r.vec.x,
@@ -102,7 +107,7 @@ export class RandomWalk implements DuckWalkUpdatable {
       );
     } else if (neighbourState.l.isFree) {
       this.duck.direction = neighbourState.l.dir;
-      play.occupyCell(
+      play.occupyTile(
         cellToPos(
           {
             col: duckTile.col + neighbourState.l.vec.x,
@@ -113,7 +118,7 @@ export class RandomWalk implements DuckWalkUpdatable {
       );
     } else if (neighbourState.b.isFree) {
       this.duck.direction = neighbourState.b.dir;
-      play.occupyCell(
+      play.occupyTile(
         cellToPos(
           {
             col: duckTile.col + neighbourState.b.vec.x,
@@ -123,11 +128,11 @@ export class RandomWalk implements DuckWalkUpdatable {
         ),
       );
     } else {
-      throw new Error("Should not be blocked")
+      throw new Error("Should not be blocked");
     }
 
     // unoccupy current cell since duck selected new target and update current start position
-    play.unoccupyCell(
+    play.unoccupyTile(
       cellToPos(
         {
           col: duckTile.col,
@@ -181,7 +186,7 @@ export class RandomWalk implements DuckWalkUpdatable {
         if (turnRight && neighbourState.r.isFree) {
           // console.log("Duck is turning right");
           this.duck.direction = neighbourState.r.dir;
-          play.occupyCell(
+          play.occupyTile(
             cellToPos(
               {
                 col: duckTile.col + neighbourState.r.vec.x,
@@ -195,7 +200,7 @@ export class RandomWalk implements DuckWalkUpdatable {
         } else if (neighbourState.l.isFree) {
           // console.log("Duck is turning left");
           this.duck.direction = neighbourState.l.dir;
-          play.occupyCell(
+          play.occupyTile(
             cellToPos(
               {
                 col: duckTile.col + neighbourState.l.vec.x,
@@ -208,7 +213,7 @@ export class RandomWalk implements DuckWalkUpdatable {
         } else if (neighbourState.r.isFree) {
           // console.log("Duck is turning right");
           this.duck.direction = neighbourState.r.dir;
-          play.occupyCell(
+          play.occupyTile(
             cellToPos(
               {
                 col: duckTile.col + neighbourState.r.vec.x,
@@ -223,7 +228,7 @@ export class RandomWalk implements DuckWalkUpdatable {
           //   "Duck is continuing forward anyway bc right/left was blocked",
           // );
           this.duck.direction = neighbourState.f.dir;
-          play.occupyCell(
+          play.occupyTile(
             cellToPos(
               {
                 col: duckTile.col + neighbourState.f.vec.x,
@@ -237,7 +242,7 @@ export class RandomWalk implements DuckWalkUpdatable {
           //   "Duck is continuing backwards anyway bc right/left/forwards was blocked",
           // );
           this.duck.direction = neighbourState.b.dir;
-          play.occupyCell(
+          play.occupyTile(
             cellToPos(
               {
                 col: duckTile.col + neighbourState.b.vec.x,
@@ -259,7 +264,7 @@ export class RandomWalk implements DuckWalkUpdatable {
         if (neighbourState.r.isFree) {
           // console.log("Duck is turning right");
           this.duck.direction = neighbourState.r.dir;
-          play.occupyCell(
+          play.occupyTile(
             cellToPos(
               {
                 col: duckTile.col + neighbourState.r.vec.x,
@@ -273,7 +278,7 @@ export class RandomWalk implements DuckWalkUpdatable {
         } else if (neighbourState.l.isFree) {
           // console.log("Duck is turning left");
           this.duck.direction = neighbourState.l.dir;
-          play.occupyCell(
+          play.occupyTile(
             cellToPos(
               {
                 col: duckTile.col + neighbourState.l.vec.x,
@@ -288,7 +293,7 @@ export class RandomWalk implements DuckWalkUpdatable {
           //   "Duck is continuing backwards anyway bc right/left/forwards was blocked",
           // );
           this.duck.direction = neighbourState.b.dir;
-          play.occupyCell(
+          play.occupyTile(
             cellToPos(
               {
                 col: duckTile.col + neighbourState.b.vec.x,
@@ -307,7 +312,7 @@ export class RandomWalk implements DuckWalkUpdatable {
       } else {
         // Should continue forward in the same direction don't do anything
         this.duck.direction = neighbourState.f.dir;
-        play.occupyCell(
+        play.occupyTile(
           cellToPos(
             {
               col: duckTile.col + neighbourState.f.vec.x,
@@ -319,7 +324,7 @@ export class RandomWalk implements DuckWalkUpdatable {
       }
 
       // unoccupy current cell since duck selected new target and update current start position
-      play.unoccupyCell(
+      play.unoccupyTile(
         cellToPos(
           {
             col: duckTile.col,
@@ -413,9 +418,7 @@ export class RandomWalk implements DuckWalkUpdatable {
 
   updateAnim() {
     const duckTile = posToCell(this.duck.pos, this.duck.scene.art.tileSize);
-    const ground = (this.duck.scene as Play).parkGrid[Math.round(duckTile.row)][
-      Math.round(duckTile.col)
-    ];
+    const ground = (this.duck.scene as Play).getGround({row: Math.round(duckTile.row), col: Math.round(duckTile.col)});
 
     if (
       ground === GroundArea.GRASS &&
@@ -449,11 +452,10 @@ export class SittingDuck implements DuckWalkUpdatable {
 
   init() {
     const duckTile = posToCell(this.duck.pos, this.duck.scene.art.tileSize);
-    const ground = (this.duck.scene as Play).parkGrid[Math.round(duckTile.row)][
-      Math.round(duckTile.col)
-    ];
+    const ground = (this.duck.scene as Play).getGround(duckTile);
 
     this.timer.start(ONE_SECOND * randomInt(1, 10));
+
     if (ground === GroundArea.GRASS) {
       this.duck.animations.play(`idle-sit-${this.duck.direction}`);
     } else if (ground === GroundArea.POND) {
@@ -493,7 +495,6 @@ export class DuckWalk implements DuckWalkUpdatable {
       throw new Error("State class not initialized");
 
     if (this.currAction.isComplete()) {
-     
       switch (this.currAction.tag) {
         case RandomWalk.TAG:
           this.transitionToAction(SittingDuck.TAG, this.duck);

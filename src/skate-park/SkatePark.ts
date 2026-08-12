@@ -30,11 +30,11 @@ import type Bench from "../Bench.ts";
 import { createAction, type Updatable } from "../actions.ts";
 
 function occupySkaterCell(skater: Skater, pos: Vec2 = skater.pos): void {
-  (skater.scene as Play).occupyCell(pos);
+  (skater.scene as Play).occupyTile(pos);
 }
 
 function unoccupySkaterCell(skater: Skater): void {
-  (skater.scene as Play).unoccupyCell(skater.pos);
+  (skater.scene as Play).unoccupyTile(skater.pos);
 }
 
 function snapSkaterToWholeTile(skater: Skater): void {

@@ -38,6 +38,9 @@ import kitJSON from "./assets/spritesheets/kit-base.json";
 import missyJSON from "./assets/spritesheets/missy-base.json";
 import sashaJSON from "./assets/spritesheets/sasha-base.json";
 
+import hawkJSON from "./assets/spritesheets/hawk-base.json";
+import bowlJSON from "./assets/spritesheets/bowl-base.json";
+
 import ballJSON from "./assets/spritesheets/ball.json";
 import duckJSON from "./assets/spritesheets/duck.json";
 import foodsCafeJSON from "./assets/spritesheets/foods.json";
@@ -61,12 +64,13 @@ export enum GroundArea {
   BRICKS,
   SKATE_GROUND,
   POND,
+  OCCUPIED,
 }
 
 export enum StrollSpot {
+  POND_BENCH,
   CACTUSES,
   SKATE_GROUND,
-  SKATE_GROUND_LEFT,
   GRASS_BY_THE_POND,
   BRIDGE,
 }
@@ -77,7 +81,7 @@ type StrollSpotData = {
 };
 
 type StrollSpotState = Map<string, boolean>;
-type OccupiedCellState = Map<string, true>;
+type OccupiedTileState = Map<string, GroundArea>;
 
 export default class Play extends Scene {
   private tilemap: Tilemap;
@@ -96,7 +100,7 @@ export default class Play extends Scene {
 
   private spots: StrollSpotData[];
   private strollSpotStates: Map<StrollSpot, StrollSpotState>;
-  private occupiedCellState: OccupiedCellState;
+  private occupiedTileState: OccupiedTileState;
 
   constructor(tilemap: Tilemap) {
     super();
@@ -111,12 +115,15 @@ export default class Play extends Scene {
     this.humans = [];
     this.spots = [];
     this.strollSpotStates = new Map();
-    this.occupiedCellState = new Map();
-
+    this.occupiedTileState = new Map();
   }
 
   private getPosKey(pos: Vec2): string {
     return `${pos.x},${pos.y}`;
+  }
+
+  private getTileKey(tile: Cell): string {
+    return `${tile.row},${tile.col}`;
   }
 
   private getStrollSpotState(strollSpot: StrollSpot): StrollSpotState {
@@ -171,6 +178,32 @@ export default class Play extends Scene {
     return { pos: spotPos.pos, direction: spotPos.direction };
   }
 
+  getGround(tile: Cell): GroundArea {
+    if (
+      tile.row < 0 ||
+      tile.row >= this.parkGrid.length ||
+      tile.col < 0 ||
+      tile.col >= this.parkGrid[0].length
+    ) {
+      throw new Error("Tile is out of bounds");
+    }
+
+    const groundTile = this.parkGrid[tile.row][tile.col];
+
+    if (groundTile == GroundArea.OCCUPIED) {
+      const ground = this.occupiedTileState.get(this.getTileKey(tile));
+
+      if (ground === undefined)
+        throw new Error(
+          "Invalid occupied tile state, missing ground information.",
+        );
+
+      return ground;
+    }
+
+    return groundTile;
+  }
+
   isTileWalkable(
     tile: Cell,
     walkableTiles: GroundArea[] = [GroundArea.GRASS],
@@ -180,12 +213,12 @@ export default class Play extends Scene {
     return (
       groundTile !== undefined &&
       walkableTiles.includes(groundTile) &&
-      !this.isCellOccupied(tile)
+      !this.isTileOccupied(tile)
     );
   }
 
-  isCellOccupied(tile: Cell): boolean {
-    return this.occupiedCellState.has(`${tile.row},${tile.col}`);
+  isTileOccupied(tile: Cell): boolean {
+    return this.occupiedTileState.has(this.getTileKey(tile));
   }
 
   getWalkabilityGrid(
@@ -193,7 +226,7 @@ export default class Play extends Scene {
   ): GroundArea[][] {
     const grid = this.parkGrid.map((row) => [...row]);
 
-    for (const [key] of this.occupiedCellState) {
+    for (const [key] of this.occupiedTileState) {
       const [rowStr, colStr] = key.split(",");
       const row = Number(rowStr);
       const col = Number(colStr);
@@ -215,23 +248,35 @@ export default class Play extends Scene {
     return grid;
   }
 
-  occupyCell(pos: Vec2): void {
+  occupyTile(pos: Vec2): boolean {
     const { row, col } = this.getGridCellFromPos(pos);
-    const key = `${row},${col}`;
+    const key = this.getTileKey({ row, col });
 
-    this.occupiedCellState.set(key, true);
+    if (this.occupiedTileState.has(key)) {
+      return false;
+    }
+
+    this.occupiedTileState.set(key, this.parkGrid[row][col]);
+    this.parkGrid[row][col] = GroundArea.OCCUPIED;
+
+    return true;
   }
 
-  unoccupyCell(pos: Vec2, cooldown?: number): void {
+  unoccupyTile(pos: Vec2, cooldown?: number): void {
     const { row, col } = this.getGridCellFromPos(pos);
-    const key = `${row},${col}`;
+    const key = this.getTileKey({ row, col });
+    const ground = this.occupiedTileState.get(key);
+
+    if (ground === undefined) return;
 
     if (cooldown) {
       setTimeout(() => {
-        this.occupiedCellState.delete(key);
+        this.parkGrid[row][col] = ground;
+        this.occupiedTileState.delete(key);
       }, cooldown);
     } else {
-      this.occupiedCellState.delete(key);
+      this.parkGrid[row][col] = ground;
+      this.occupiedTileState.delete(key);
     }
   }
 
@@ -347,6 +392,8 @@ export default class Play extends Scene {
     this.loadSprite("sasha-base", sashaJSON as AsepriteJSON);
     this.loadSprite("kit-base", kitJSON as AsepriteJSON);
 
+    this.loadSprite("hawk-base", hawkJSON as AsepriteJSON);
+    this.loadSprite("bowl-base", bowlJSON as AsepriteJSON);
     // This is a transparent image for a "flat" obstacle... just bc static images require an image
 
     this.art!.images.add(
@@ -557,37 +604,70 @@ export default class Play extends Scene {
       ),
     );
 
-    // const grls = new Group(this, [
-    //   StrollSpot.GRASS_BY_THE_POND,
-    //   StrollSpot.CACTUSES,
-    //   StrollSpot.SKATE_GROUND_LEFT,
-    //   StrollSpot.GRASS_BY_THE_POND,
-    //   StrollSpot.CACTUSES,
-    // ]);
+    const grls = new Group(this, [
+      StrollSpot.GRASS_BY_THE_POND,
+      StrollSpot.CACTUSES,
+      StrollSpot.SKATE_GROUND,
+      StrollSpot.GRASS_BY_THE_POND,
+      StrollSpot.CACTUSES,
+    ]);
+
+    this.humans.push(
+      new Stroller(
+        this,
+        {
+          x: 9 * this.tileSize,
+          y: this.tileSize * 11,
+        },
+        "missy",
+        "stroll",
+        grls,
+      ),
+    );
+
+    this.humans.push(
+      new Stroller(
+        this,
+        {
+          x: this.tileSize * 10,
+          y: this.tileSize * 10,
+        },
+        "kit",
+        "stroll",
+        grls,
+      ),
+    );
+
+    this.humans.push(
+      new Stroller(
+        this,
+        {
+          x: this.tileSize * 8,
+          y: this.tileSize * 10,
+        },
+        "sasha",
+        "stroll",
+        grls,
+      ),
+    );
+
+    const gayCouple = new Group(this, [
+      StrollSpot.POND_BENCH,
+      StrollSpot.CACTUSES,
+      StrollSpot.SKATE_GROUND,
+      StrollSpot.POND_BENCH,
+    ]);
 
     // this.humans.push(
     //   new Stroller(
     //     this,
     //     {
-    //       x: 10 * this.tileSize,
-    //       y: this.tileSize * 11,
+    //       x: this.tileSize * 12,
+    //       y: this.tileSize * 4,
     //     },
-    //     "missy",
+    //     "hawk",
     //     "stroll",
-    //     grls,
-    //   ),
-    // );
-
-    // this.humans.push(
-    //   new Stroller(
-    //     this,
-    //     {
-    //       x: this.tileSize * 10,
-    //       y: this.tileSize * 10,
-    //     },
-    //     "kit",
-    //     "stroll",
-    //     grls,
+    //     gayCouple,
     //   ),
     // );
 
@@ -596,11 +676,11 @@ export default class Play extends Scene {
     //     this,
     //     {
     //       x: this.tileSize * 9,
-    //       y: this.tileSize * 10,
+    //       y: this.tileSize * 5,
     //     },
-    //     "sasha",
+    //     "bowl",
     //     "stroll",
-    //     grls,
+    //     gayCouple,
     //   ),
     // );
 
@@ -638,19 +718,16 @@ export default class Play extends Scene {
 
     const getInitDuckPos = () => {
       while (true) {
-        const tile = getRandomFreeCell(this.parkGrid, [
-          GroundArea.POND,
-          GroundArea.GRASS,
-        ]);
+        const tile = getRandomFreeCell(this.parkGrid, [GroundArea.POND]);
         if (tile !== null && isWithinBounds(tile.row, tile.col)) {
           const pos = cellToPos(tile, this.art.tileSize);
-          this.occupyCell(pos);
+          this.occupyTile(pos);
           return pos;
         }
       }
     };
 
-    for (let n = 0; n < 12; ++n) {
+    for (let n = 0; n < 8; ++n) {
       const pos = getInitDuckPos();
       // console.log("POS", pos);
       const duck = new Duck(this, pos);
@@ -692,6 +769,14 @@ export default class Play extends Scene {
         );
         this.benches.push(bench);
         this.addObject(bench);
+
+        if (!bench.isAtSkatePark) {
+          this.pushSpot(
+            StrollSpot.POND_BENCH,
+            { x: bench.pos.x, y: bench.pos.y + this.tileSize },
+            "s",
+          );
+        }
         return bench;
       case "bowl":
         const bowl = new Bowl(this, o.pos, o.width, o.height);

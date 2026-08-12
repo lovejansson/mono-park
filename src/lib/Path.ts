@@ -26,17 +26,25 @@ export default class Path {
   private goalCell: Cell;
   private sprite: Sprite;
   private walkableTileValues: number[];
+  private shouldRecalculateWhenBlocked: boolean;
 
-  constructor(sprite: Sprite, goal: Vec2, grid: any[][], walkableTileValues?: number[]) {
+  constructor(
+    sprite: Sprite,
+    goal: Vec2,
+    grid: any[][],
+    walkableTileValues?: number[],
+    shouldRecalculateWhenBlocked: boolean = true,
+  ) {
     this.sprite = sprite;
     this.grid = grid;
     this.goalCell = posToCell(goal, sprite.scene.art!.tileSize);
     this.walkableTileValues = walkableTileValues ?? [0];
+    this.shouldRecalculateWhenBlocked = shouldRecalculateWhenBlocked;
 
     this.path = createPathAStar(
       posToCell(this.sprite.pos, this.sprite.scene.art!.tileSize),
       this.goalCell,
-      this.getGridForPathfinding(),
+      this.grid,
       this.walkableTileValues,
     );
 
@@ -55,12 +63,6 @@ export default class Path {
 
   update(_: number) {
     if (!this.hasReachedGoal) {
-      if (!this.ensurePathToNextCell()) {
-        this.sprite.vel.x = 0;
-        this.sprite.vel.y = 0;
-        return;
-      }
-
       this.updateVelocity();
       this.updateDirection();
 
@@ -70,6 +72,11 @@ export default class Path {
       const pixelDiff = Math.max(Math.abs(diff.x), Math.abs(diff.y));
 
       if (pixelDiff === this.sprite.scene.art!.tileSize) {
+        // if (!this.ensurePathToNextCell()) {
+        //   this.sprite.vel.x = 0;
+        //   this.sprite.vel.y = 0;
+        //   return;
+        // }
         this.next();
       }
     }
@@ -92,6 +99,9 @@ export default class Path {
     this.sprite.path.hasReachedGoal = false;
   }
 
+  getCurrentPath(): Cell[] {
+    return this.path;
+  }
   private calculateVelocity(): Vec2 {
     const currCell = this.path[this.currPathIdx];
 
@@ -118,19 +128,17 @@ export default class Path {
 
   private ensurePathToNextCell(): boolean {
     if (this.currPathIdx >= this.path.length - 1) {
-      throw new Error("Path invariant violated: no next cell available while path is still updating");
+      throw new Error(
+        "Path invariant violated: no next cell available while path is still updating",
+      );
     }
 
     const nextCell = this.path[this.currPathIdx + 1];
     const nextCellGroundIsWalkable = this.walkableTileValues.includes(
       this.grid[nextCell.row][nextCell.col],
     );
-    const nextCellIsOccupied = this.isCellOccupied(nextCell);
 
-    if (
-      (nextCellGroundIsWalkable && !nextCellIsOccupied) ||
-      this.isGoalCell(nextCell)
-    ) {
+    if (nextCellGroundIsWalkable || this.isGoalCell(nextCell)) {
       return true;
     }
 
@@ -138,7 +146,10 @@ export default class Path {
   }
 
   private recalculatePath(): boolean {
-    const currentCell = posToCell(this.sprite.pos, this.sprite.scene.art!.tileSize);
+    const currentCell = posToCell(
+      this.sprite.pos,
+      this.sprite.scene.art!.tileSize,
+    );
 
     if (
       currentCell.row === this.goalCell.row &&
@@ -153,7 +164,7 @@ export default class Path {
       this.path = createPathAStar(
         currentCell,
         this.goalCell,
-        this.getGridForPathfinding(),
+        this.grid,
         this.walkableTileValues,
       );
       this.currPathIdx = 0;
@@ -162,50 +173,6 @@ export default class Path {
     } catch {
       return false;
     }
-  }
-
-  private getGridForPathfinding(): any[][] {
-    const grid = this.grid.map((row) => [...row]);
-    const occupiedBlockedValue = this.getOccupiedBlockedValue();
-
-    for (let row = 0; row < grid.length; ++row) {
-      for (let col = 0; col < grid[row].length; ++col) {
-        if (
-          row === this.goalCell.row &&
-          col === this.goalCell.col
-        ) {
-          continue;
-        }
-
-        if (this.isCellOccupied({ row, col })) {
-          grid[row][col] = occupiedBlockedValue;
-        }
-      }
-    }
-
-    if (!this.walkableTileValues.includes(this.grid[this.goalCell.row][this.goalCell.col])) {
-      grid[this.goalCell.row][this.goalCell.col] = this.walkableTileValues[0] ?? 0;
-    }
-
-    return grid;
-  }
-
-  private isCellOccupied(cell: Cell): boolean {
-    const scene = this.sprite.scene as {
-      isCellOccupied?: (tile: Cell) => boolean;
-    };
-
-    return scene.isCellOccupied?.(cell) ?? false;
-  }
-
-  private getOccupiedBlockedValue(): number {
-    let value = -1;
-
-    while (this.walkableTileValues.includes(value)) {
-      value -= 1;
-    }
-
-    return value;
   }
 
   private isGoalCell(cell: Cell): boolean {
