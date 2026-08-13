@@ -1,7 +1,8 @@
 import { createPathAStar } from "../grid.ts";
-import type { Sprite } from "./index.ts";
+import { GroundArea, type Sprite } from "./index.ts";
+import { ResolutionResult } from "./PathCollisionManager.ts";
 import type { Cell, Direction, Vec2 } from "./types.ts";
-import { getPosDiff, posToCell } from "./utils.ts";
+import { cellToPos, getPosDiff, isSameCell, posToCell } from "./utils.ts";
 
 // Get direction diff for x and why and use that as index to get label for direction. directionLables[y + 1][x + 1]
 const directionLables = [
@@ -10,14 +11,10 @@ const directionLables = [
   ["sw", "s", "se"],
 ];
 
-/**
- * A path that a sprite can move on. Handles creation of path on the grid and updating of position (x,y).
- * You need to create a new instance whenever a sprite should walk on a path.
- * Supports 8 directional walks.
- */
 export default class Path {
   hasReachedGoal: boolean;
   cellCount: number;
+  isWaiting: boolean;
 
   private currStart: Vec2;
   private grid: any[][];
@@ -25,21 +22,20 @@ export default class Path {
   private currPathIdx: number;
   private goalCell: Cell;
   private sprite: Sprite;
-  private walkableTileValues: number[];
-  private shouldRecalculateWhenBlocked: boolean;
+  private walkableTileValues: GroundArea[];
 
   constructor(
     sprite: Sprite,
     goal: Vec2,
     grid: any[][],
-    walkableTileValues?: number[],
-    shouldRecalculateWhenBlocked: boolean = true,
+    walkableTileValues?: GroundArea[],
   ) {
+    
     this.sprite = sprite;
     this.grid = grid;
     this.goalCell = posToCell(goal, sprite.scene.art!.tileSize);
-    this.walkableTileValues = walkableTileValues ?? [0];
-    this.shouldRecalculateWhenBlocked = shouldRecalculateWhenBlocked;
+    this.walkableTileValues = walkableTileValues ?? [GroundArea.GRASS];
+    this.isWaiting = false;
 
     this.path = createPathAStar(
       posToCell(this.sprite.pos, this.sprite.scene.art!.tileSize),
@@ -48,36 +44,71 @@ export default class Path {
       this.walkableTileValues,
     );
 
+
     this.currStart = { ...this.sprite.pos };
     this.currPathIdx = 0;
     this.hasReachedGoal = false;
     this.cellCount = 0;
+
+   /**
+    * 
+    * INNAN EN PATH FÖR EN SPRITE SKAPAS vill jag blockera alla slot pos förutom min egen, skapa path, oblockera alla slot pos flrutom min egen, för attkunna gå till den men inte skapa väg genom de andra slot positioner 
+    */
   }
 
   start() {
+    this.sprite.currentPath = this;
     this.sprite.path.isOnPath = true;
     this.sprite.path.hasReachedGoal = false;
+
     this.updateVelocity();
     this.updateDirection();
   }
 
-  update(_: number) {
-    if (!this.hasReachedGoal) {
+  preUpdate(_: number): void {
+    if (!this.hasReachedGoal && !this.isWaiting) {
+       
       this.updateVelocity();
       this.updateDirection();
-
-      // When sprite has moved a tile changed to next cell
 
       const diff = getPosDiff(this.sprite.pos, this.currStart);
       const pixelDiff = Math.max(Math.abs(diff.x), Math.abs(diff.y));
 
-      if (pixelDiff === this.sprite.scene.art!.tileSize) {
-        // if (!this.ensurePathToNextCell()) {
-        //   this.sprite.vel.x = 0;
-        //   this.sprite.vel.y = 0;
-        //   return;
-        // }
+      if (pixelDiff === this.sprite.scene.art!.tileSize - 1) {
+        console.log("PUSH")
+        this.sprite.scene.collisions.pushIntent(
+          this.sprite.id,
+          this.path[this.currPathIdx],
+          this.path[this.currPathIdx + 1],
+        );
+      }
+    }
+  }
+
+  update(_: number): void {
+    if (!this.hasReachedGoal) {
+      if (!this.sprite.scene.collisions.hasMoveIntent(this.sprite.id)) return;
+
+      const resolutionResult = this.sprite.scene.collisions.getResolution(
+        this.sprite.id,
+      );
+
+      if (resolutionResult.result === ResolutionResult.MOVE) {
+        this.isWaiting = false;
+        if (!isSameCell(this.path[this.currPathIdx + 1], resolutionResult.tile))
+          throw new Error(
+            "Tile in move intent does not match with next tile in path! :<",
+          );
+
         this.next();
+
+        this.sprite.scene.collisions.commitMove(
+          this.sprite.id,
+          this.path[this.currPathIdx],
+        );
+      } else {
+        console.log("WILL WAIT", this.sprite.id, this.path[this.currPathIdx]);
+        this.isWaiting = true;
       }
     }
   }
@@ -86,7 +117,7 @@ export default class Path {
     this.currPathIdx++;
     this.cellCount++;
 
-    this.currStart = { ...this.sprite.pos };
+    this.currStart = { x: this.sprite.pos.x += this.sprite.vel.x, y: this.sprite.pos.y += this.sprite.vel.y };
 
     if (this.currPathIdx === this.path.length - 1) {
       this.hasReachedGoal = true;
@@ -95,6 +126,9 @@ export default class Path {
   }
 
   finish() {
+    if (this.sprite.currentPath === this) {
+      this.sprite.currentPath = null;
+    }
     this.sprite.path.isOnPath = false;
     this.sprite.path.hasReachedGoal = false;
   }
@@ -124,58 +158,5 @@ export default class Path {
     const vel = this.calculateVelocity();
     this.sprite.vel.x = vel.x;
     this.sprite.vel.y = vel.y;
-  }
-
-  private ensurePathToNextCell(): boolean {
-    if (this.currPathIdx >= this.path.length - 1) {
-      throw new Error(
-        "Path invariant violated: no next cell available while path is still updating",
-      );
-    }
-
-    const nextCell = this.path[this.currPathIdx + 1];
-    const nextCellGroundIsWalkable = this.walkableTileValues.includes(
-      this.grid[nextCell.row][nextCell.col],
-    );
-
-    if (nextCellGroundIsWalkable || this.isGoalCell(nextCell)) {
-      return true;
-    }
-
-    return this.recalculatePath();
-  }
-
-  private recalculatePath(): boolean {
-    const currentCell = posToCell(
-      this.sprite.pos,
-      this.sprite.scene.art!.tileSize,
-    );
-
-    if (
-      currentCell.row === this.goalCell.row &&
-      currentCell.col === this.goalCell.col
-    ) {
-      this.hasReachedGoal = true;
-      this.sprite.path.hasReachedGoal = true;
-      return true;
-    }
-
-    try {
-      this.path = createPathAStar(
-        currentCell,
-        this.goalCell,
-        this.grid,
-        this.walkableTileValues,
-      );
-      this.currPathIdx = 0;
-      this.currStart = { ...this.sprite.pos };
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  private isGoalCell(cell: Cell): boolean {
-    return cell.row === this.goalCell.row && cell.col === this.goalCell.col;
   }
 }

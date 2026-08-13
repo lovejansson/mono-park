@@ -16,5 +16,6 @@ export default abstract class ArtObject {
     this.id = scene.art.getId();
   }
 
+  preUpdate(_dt: number): void {}
   update(_dt: number): void {}
 }

@@ -42,7 +42,7 @@ export default class PlayBall implements PlayBallUpdatable {
       ) {
         this.human.animations.play(`idle-stand-${this.human.direction}`);
       }
-      (this.human.scene as Play).occupyTile(this.human.pos);
+      this.human.scene.grid.occupyTile(this.human.id, this.human.pos);
       this.timer.start(ONE_MINUTE * randomInt(1, 2));
 
       if (this.game.hasGotBall(this.human.id)) {
@@ -74,7 +74,7 @@ export default class PlayBall implements PlayBallUpdatable {
             this.human.animations.play(`idle-stand-${this.human.direction}`);
           }
 
-          (this.human.scene as Play).occupyTile(this.human.pos);
+          this.human.scene.grid.occupyTile(this.human.id, this.human.pos);
 
           this.game.playerHasExchanged();
           this.transitionToAction(WaitForPass.TAG, this.human, this.game);
@@ -87,7 +87,7 @@ export default class PlayBall implements PlayBallUpdatable {
           break;
         case Pass.TAG:
           if (this.timer.isStopped && this.game.canQuit()) {
-            (this.human.scene as Play).unoccupyTile(this.human.pos);
+            this.human.scene.grid.unoccupyTile(this.human.pos);
             this.game.quit(this.human.id);
             return;
           }
@@ -156,7 +156,7 @@ class WaitForPass implements PlayBallUpdatable {
           this.human.direction = this.game.getPlayerArea(
             this.human.id,
           ).direction;
-          (this.human.scene as Play).occupyTile(this.human.pos);
+          this.human.scene.grid.occupyTile(this.human.id, this.human.pos);
           this.gotPassed = true;
         }
         return;
@@ -164,17 +164,17 @@ class WaitForPass implements PlayBallUpdatable {
 
       if (isSamePos(this.human.pos, passTargetPos)) {
         this.human.animations.play(`idle-stand-${playerAreaDirection}`);
-        (this.human.scene as Play).occupyTile(this.human.pos);
+        this.human.scene.grid.occupyTile(this.human.id, this.human.pos);
         this.gotPassed = true;
         return;
       }
 
-      (this.human.scene as Play).unoccupyTile(this.human.pos);
+      this.human.scene.grid.unoccupyTile(this.human.pos);
 
       this.path = new Path(
         this.human,
         passTargetPos,
-        (this.human.scene as Play).parkGrid,
+        this.human.scene.grid.getGrid(),
       );
 
       this.path.start();
@@ -260,13 +260,13 @@ export class Chillin implements PlayBallUpdatable {
     if (this.currAction.isComplete()) {
       switch (this.currAction.tag) {
         case GoTo.TAG:
-          (this.human.scene as Play).occupyTile(this.human.pos);
+          this.human.scene.grid.occupyTile(this.human.id, this.human.pos);
           this.game.playerHasExchanged();
           this.transitionToAction(SitOnGrass.TAG, this.human, "s", ONE_MINUTE);
           break;
         case SitOnGrass.TAG:
           if (this.game.canEnter()) {
-            (this.human.scene as Play).unoccupyTile(this.human.pos);
+            this.human.scene.grid.unoccupyTile(this.human.pos);
             this.game.enter(this.human.id);
             this.game.returnChillPos(this.chillPos);
           }

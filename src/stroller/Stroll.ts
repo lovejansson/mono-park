@@ -8,7 +8,9 @@ import {
   type CommonUpdatable,
 } from "../commonActions.ts";
 import type Human from "../Human.ts";
+import { GroundArea } from "../lib/Grid.ts";
 import type { Direction, Vec2 } from "../lib/types.ts";
+import { isSamePos, posToCell } from "../lib/utils.ts";
 import Play, { StrollSpot } from "../Play.ts";
 import { TEN_SECONDS } from "../Timer.ts";
 
@@ -32,16 +34,31 @@ export default class Stroll implements StrollUpdatable {
       this.human.group.startWalk(this.human.id);
       this.assignNextSpotPos();
 
-      this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos, false);
-      this.getScene().occupyTile(this.spotPos.pos);
+      this.blockSpotPositions();
+
+      this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos, [
+        GroundArea.GRASS,
+        GroundArea.GRAVEL,
+      ]);
+
+      this.unblockSpotPositions();
+      this.human.scene.grid.occupyTile(this.human.id, this.spotPos.pos);
     } else {
       this.strollSpot = this.human.group.getStrollSpot();
       this.assignNextSpotPos();
+      this.blockSpotPositions();
 
-      this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos, false);
-      console.log(this.human.name, this.spotPos);
-      this.getScene().occupyTile(this.spotPos.pos);
+      this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos, [
+        GroundArea.GRASS,
+        GroundArea.GRAVEL,
+      ]);
+
+      this.unblockSpotPositions();
+
+      this.human.scene.grid.occupyTile(this.human.id, this.spotPos.pos);
     }
+
+    console.dir(this.human.scene.grid.getGrid());
   }
 
   update(dt: number): void {
@@ -50,12 +67,18 @@ export default class Stroll implements StrollUpdatable {
 
     if (this.human.group.isWalking() && this.currAction.tag !== GoTo.TAG) {
       this.returnSpotPos();
-      this.getScene().unoccupyTile(this.spotPos.pos);
+      this.human.scene.grid.unoccupyTile(this.spotPos.pos);
       this.strollSpot = this.human.group.getStrollSpot();
       this.assignNextSpotPos();
-      this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos, false);
+      this.blockSpotPositions();
 
-      this.getScene().occupyTile(this.spotPos.pos);
+      this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos, [
+        GroundArea.GRASS,
+        GroundArea.GRAVEL,
+      ]);
+
+      this.unblockSpotPositions();
+      this.human.scene.grid.occupyTile(this.human.id, this.spotPos.pos);
       return;
     }
 
@@ -117,20 +140,21 @@ export default class Stroll implements StrollUpdatable {
         case SitOnGrass.TAG:
         case StandIdle.TAG:
           if (!this.human.group.isWalking()) {
-            this.getScene().unoccupyTile(this.spotPos.pos);
+            this.human.scene.grid.unoccupyTile(this.spotPos.pos);
             this.returnSpotPos();
 
             this.human.group.nextStrollSpot();
             this.strollSpot = this.human.group.getStrollSpot();
             this.human.group.startWalk(this.human.id);
             this.assignNextSpotPos();
-            this.transitionToAction(
-              GoTo.TAG,
-              this.human,
-              this.spotPos.pos,
-              false,
-            );
-            this.getScene().occupyTile(this.spotPos.pos);
+            this.blockSpotPositions();
+
+            this.transitionToAction(GoTo.TAG, this.human, this.spotPos.pos, [
+              GroundArea.GRASS,
+              GroundArea.GRAVEL,
+            ]);
+            this.human.scene.grid.occupyTile(this.human.id, this.spotPos.pos);
+            this.unblockSpotPositions();
           }
           break;
       }
@@ -141,6 +165,30 @@ export default class Stroll implements StrollUpdatable {
 
   isComplete(): boolean {
     return false;
+  }
+
+  private blockSpotPositions() {
+    const positionsAtSpot = (this.human.scene as Play).getSpotPositions(
+      this.strollSpot,
+    );
+
+    for (const p of positionsAtSpot) {
+      if (!isSamePos(p, this.spotPos.pos)) {
+        this.human.scene.grid.blockTile(p);
+      }
+    }
+  }
+
+  private unblockSpotPositions() {
+    const positionsAtSpot = (this.human.scene as Play).getSpotPositions(
+      this.strollSpot,
+    );
+
+    for (const p of positionsAtSpot) {
+      if (!isSamePos(p, this.spotPos.pos)) {
+        this.human.scene.grid.unBlockTile(p);
+      }
+    }
   }
 
   private transitionToAction<

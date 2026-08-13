@@ -4,6 +4,7 @@ import {
   type ActionTag,
   type Updatable,
 } from "./actions";
+import { GoTo } from "./commonActions";
 import type Group from "./Group";
 
 import {  Sprite } from "./lib";
@@ -21,8 +22,8 @@ export default class Human extends Sprite {
 
   name: string;
   tileSize: number;
-  action: ActionTag | null;
-  currentAction!: Updatable;
+  action: ActionTag | null; // current most inner action that human is taking...
+  currentAction!: Updatable; // current outer action for this human
   group: Group;
 
   constructor(
@@ -77,14 +78,20 @@ export default class Human extends Sprite {
                 this.vel.y = 0;
                 break;
             }
+        
             this.pos.x += this.vel.x;
             this.pos.y += this.vel.y;
+       
           } else {
             throw new Error("Animation " + anim + " not found!");
           }
           break;
       }
     };
+  }
+
+  preUpdate(dt: number): void {
+    this.currentPath?.preUpdate(dt);
   }
 
   update(dt: number): void {

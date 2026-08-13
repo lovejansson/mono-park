@@ -98,6 +98,7 @@ export default class Art {
 
     this.config.play.art = this;
     this.config.pause.art = this;
+    
 
     await this.config.play.init();
     await this.config.pause.init();

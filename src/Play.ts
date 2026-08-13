@@ -1,5 +1,6 @@
 import {
   ArtObject,
+  posToCell,
   Scene,
   StaticImage,
   type Cell,
@@ -56,16 +57,7 @@ import Group from "./Group.ts";
 import Stroller from "./stroller/Stroller.ts";
 import Duck from "./ducks/Duck.ts";
 import { getCollision } from "./lib/collision.ts";
-
-export enum GroundArea {
-  GRASS,
-  NOT_WALKABLE,
-  GRAVEL,
-  BRICKS,
-  SKATE_GROUND,
-  POND,
-  OCCUPIED,
-}
+import { GroundArea } from "./lib/Grid.ts";
 
 export enum StrollSpot {
   POND_BENCH,
@@ -81,12 +73,10 @@ type StrollSpotData = {
 };
 
 type StrollSpotState = Map<string, boolean>;
-type OccupiedTileState = Map<string, GroundArea>;
 
 export default class Play extends Scene {
   private tilemap: Tilemap;
   public obstacles: Obstacle[];
-  public parkGrid: GroundArea[][];
   private skaters!: Skater[];
   private humans: Human[];
   private ducks: Duck[];
@@ -100,13 +90,11 @@ export default class Play extends Scene {
 
   private spots: StrollSpotData[];
   private strollSpotStates: Map<StrollSpot, StrollSpotState>;
-  private occupiedTileState: OccupiedTileState;
 
   constructor(tilemap: Tilemap) {
     super();
     this.tilemap = tilemap;
     this.obstacles = [];
-    this.parkGrid = [];
     this.tileSize = 16;
     this.skaters = [];
     this.benches = [];
@@ -115,15 +103,10 @@ export default class Play extends Scene {
     this.humans = [];
     this.spots = [];
     this.strollSpotStates = new Map();
-    this.occupiedTileState = new Map();
   }
 
   private getPosKey(pos: Vec2): string {
     return `${pos.x},${pos.y}`;
-  }
-
-  private getTileKey(tile: Cell): string {
-    return `${tile.row},${tile.col}`;
   }
 
   private getStrollSpotState(strollSpot: StrollSpot): StrollSpotState {
@@ -163,6 +146,7 @@ export default class Play extends Scene {
   }
 
   getStrollPos(strollSpot: StrollSpot): { pos: Vec2; direction: Direction } {
+    console.log("GET STROLL POS");
     const spot = this.getStrollSpot(strollSpot);
     const state = this.getStrollSpotState(strollSpot);
 
@@ -173,240 +157,17 @@ export default class Play extends Scene {
     if (spotPos === undefined)
       throw new Error("No position found for stroll spot!");
 
+    console.dir(spotPos.pos);
+
     state.set(this.getPosKey(spotPos.pos), false);
 
     return { pos: spotPos.pos, direction: spotPos.direction };
-  }
-
-  getGround(tile: Cell): GroundArea {
-    if (
-      tile.row < 0 ||
-      tile.row >= this.parkGrid.length ||
-      tile.col < 0 ||
-      tile.col >= this.parkGrid[0].length
-    ) {
-      throw new Error("Tile is out of bounds");
-    }
-
-    const groundTile = this.parkGrid[tile.row][tile.col];
-
-    if (groundTile == GroundArea.OCCUPIED) {
-      const ground = this.occupiedTileState.get(this.getTileKey(tile));
-
-      if (ground === undefined)
-        throw new Error(
-          "Invalid occupied tile state, missing ground information.",
-        );
-
-      return ground;
-    }
-
-    return groundTile;
-  }
-
-  isTileWalkable(
-    tile: Cell,
-    walkableTiles: GroundArea[] = [GroundArea.GRASS],
-  ): boolean {
-    const groundTile = this.parkGrid[tile.row]?.[tile.col];
-
-    return (
-      groundTile !== undefined &&
-      walkableTiles.includes(groundTile) &&
-      !this.isTileOccupied(tile)
-    );
-  }
-
-  isTileOccupied(tile: Cell): boolean {
-    return this.occupiedTileState.has(this.getTileKey(tile));
-  }
-
-  getWalkabilityGrid(
-    occupiedValue: GroundArea = GroundArea.NOT_WALKABLE,
-  ): GroundArea[][] {
-    const grid = this.parkGrid.map((row) => [...row]);
-
-    for (const [key] of this.occupiedTileState) {
-      const [rowStr, colStr] = key.split(",");
-      const row = Number(rowStr);
-      const col = Number(colStr);
-
-      if (
-        Number.isNaN(row) ||
-        Number.isNaN(col) ||
-        row < 0 ||
-        row >= grid.length ||
-        col < 0 ||
-        col >= grid[0].length
-      ) {
-        continue;
-      }
-
-      grid[row][col] = occupiedValue;
-    }
-
-    return grid;
-  }
-
-  occupyTile(pos: Vec2): boolean {
-    const { row, col } = this.getGridCellFromPos(pos);
-    const key = this.getTileKey({ row, col });
-
-    if (this.occupiedTileState.has(key)) {
-      return false;
-    }
-
-    this.occupiedTileState.set(key, this.parkGrid[row][col]);
-    this.parkGrid[row][col] = GroundArea.OCCUPIED;
-
-    return true;
-  }
-
-  unoccupyTile(pos: Vec2, cooldown?: number): void {
-    const { row, col } = this.getGridCellFromPos(pos);
-    const key = this.getTileKey({ row, col });
-    const ground = this.occupiedTileState.get(key);
-
-    if (ground === undefined) return;
-
-    if (cooldown) {
-      setTimeout(() => {
-        this.parkGrid[row][col] = ground;
-        this.occupiedTileState.delete(key);
-      }, cooldown);
-    } else {
-      this.parkGrid[row][col] = ground;
-      this.occupiedTileState.delete(key);
-    }
-  }
-
-  private getGridCellFromPos(pos: Vec2): Cell {
-    const row = Math.floor(pos.y / this.tileSize);
-    const col = Math.floor(pos.x / this.tileSize);
-
-    if (
-      row < 0 ||
-      row >= this.parkGrid.length ||
-      col < 0 ||
-      col >= this.parkGrid[0].length
-    ) {
-      throw new Error("Grid cell is out of bounds");
-    }
-
-    return { row, col };
   }
 
   getHuman(id: number): Human {
     const human = this.humans.find((h) => h.id === id);
     if (human === undefined) throw new Error("Human not found in scene.");
     return human;
-  }
-
-  private loadSkaterSprite(
-    name: string,
-    skaterJson: AsepriteJSON,
-    baseJson: AsepriteJSON,
-  ) {
-    const skaterKey = `${name}-skater`;
-    const baseKey = `${name}-base`;
-
-    this.loadSprite(skaterKey, skaterJson);
-    this.loadSprite(baseKey, baseJson);
-  }
-
-  private loadBallerSprite(
-    name: string,
-    ballerJSON: AsepriteJSON,
-    baseJson: AsepriteJSON,
-  ) {
-    const ballerKey = `${name}-baller`;
-    const baseKey = `${name}-base`;
-
-    this.loadSprite(ballerKey, ballerJSON);
-    this.loadSprite(baseKey, baseJson);
-  }
-
-  private async loadStaticAssets() {
-    this.art!.images.add("tilemap", this.tilemap.tilemap);
-
-    this.loadSkaterSprite(
-      "spike",
-      spikeSkaterJSON as AsepriteJSON,
-      spikeBaseJSON as AsepriteJSON,
-    );
-    this.loadSkaterSprite(
-      "kim",
-      kimSkaterJSON as AsepriteJSON,
-      kimBaseJSON as AsepriteJSON,
-    );
-    this.loadSkaterSprite(
-      "bobby",
-      bobbySkaterJSON as AsepriteJSON,
-      bobbyBaseJSON as AsepriteJSON,
-    );
-
-    this.loadSkaterSprite(
-      "love",
-      loveSkaterJSON as AsepriteJSON,
-      loveBaseJSON as AsepriteJSON,
-    );
-
-    this.loadSkaterSprite(
-      "jazz",
-      jazzSkaterJSON as AsepriteJSON,
-      jasmineBaseJSON as AsepriteJSON,
-    );
-
-    this.loadSprite("door-cafe", doorCafeJSON as AsepriteJSON);
-    this.loadSprite("foods", foodsCafeJSON as AsepriteJSON);
-    this.loadSprite("ball", ballJSON as AsepriteJSON);
-    this.loadSprite("duck", duckJSON as AsepriteJSON);
-
-    this.loadBallerSprite(
-      "linda",
-      lindaBallerJSON as AsepriteJSON,
-      lindaBaseJSON as AsepriteJSON,
-    );
-    this.loadBallerSprite(
-      "benny",
-      bennyBallerJSON as AsepriteJSON,
-      bennyBaseJSON as AsepriteJSON,
-    );
-    this.loadBallerSprite(
-      "max",
-      maxBallerJSON as AsepriteJSON,
-      maxBaseJSON as AsepriteJSON,
-    );
-    this.loadBallerSprite(
-      "amanda",
-      amandaBallerJSON as AsepriteJSON,
-      amandaBaseJSON as AsepriteJSON,
-    );
-    this.loadBallerSprite(
-      "nick",
-      nickBallerJSON as AsepriteJSON,
-      nickBaseJSON as AsepriteJSON,
-    );
-
-    this.loadSprite("missy-base", missyJSON as AsepriteJSON);
-    this.loadSprite("sasha-base", sashaJSON as AsepriteJSON);
-    this.loadSprite("kit-base", kitJSON as AsepriteJSON);
-
-    this.loadSprite("hawk-base", hawkJSON as AsepriteJSON);
-    this.loadSprite("bowl-base", bowlJSON as AsepriteJSON);
-    // This is a transparent image for a "flat" obstacle... just bc static images require an image
-
-    this.art!.images.add(
-      "flat",
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAEklEQVR4nGNgGAWjYBSMglEwCjAAAGwAAWzQqWQAAAAASUVORK5CYII=",
-    );
-
-    await this.art!.images.load();
-  }
-
-  private loadSprite(name: string, json: AsepriteJSON) {
-    this.art!.images.add(name, `/sprites/${name}.png`);
-    this.art!.spritesheets.create(name, name, json);
   }
 
   async init() {
@@ -421,7 +182,7 @@ export default class Play extends Scene {
     this.obstacles.push(flat);
     this.addObject(flat);
 
-    this.parkGrid = createGrid(this.tilemap.rows, this.tilemap.cols, 1);
+    this.grid.init(this.tilemap.rows, this.tilemap.cols);
 
     this.tileSize = this.art!.tileSize;
 
@@ -439,6 +200,8 @@ export default class Play extends Scene {
     const playerAreas: PlayerArea[] = [];
     const ballerChillPositions: Vec2[] = [];
 
+    this.collisions.setWalkableTiles([GroundArea.GRASS, GroundArea.GRAVEL]);
+
     for (const t of this.tilemap.attributes) {
       const isSkateGround = t.attributes.isSkateGround === true;
       const isWalkable = t.attributes.isWalkable === true;
@@ -449,9 +212,20 @@ export default class Play extends Scene {
       const isSkateSpot = t.attributes.isSkateSpot === true;
       const isPond = t.attributes.isPond === true;
 
+      if (isWalkable) {
+        this.grid.setTileValue(
+          t.pos.y / this.tileSize,
+          t.pos.x / this.tileSize,
+          GroundArea.GRASS,
+        );
+      }
+
       if (isPond) {
-        this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] =
-          GroundArea.POND;
+        this.grid.setTileValue(
+          t.pos.y / this.tileSize,
+          t.pos.x / this.tileSize,
+          GroundArea.POND,
+        );
       }
 
       if (isGrassByThePond && t.attributes.spotDirection) {
@@ -474,14 +248,12 @@ export default class Play extends Scene {
         ballerChillPositions.push(t.pos);
       }
 
-      if (isWalkable) {
-        this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] =
-          GroundArea.GRASS;
-      }
-
       if (isSkateGround) {
-        this.parkGrid[t.pos.y / this.tileSize][t.pos.x / this.tileSize] =
-          GroundArea.SKATE_GROUND;
+        this.grid.setTileValue(
+          t.pos.y / this.tileSize,
+          t.pos.x / this.tileSize,
+          GroundArea.SKATE_GROUND,
+        );
       }
 
       if (isBallerArea) {
@@ -522,13 +294,13 @@ export default class Play extends Scene {
 
         for (let r = startRow; r < endRow; ++r) {
           for (let c = startCol; c < endCol; ++c) {
-            this.parkGrid[r][c] = GroundArea.NOT_WALKABLE;
+            this.grid.setTileValue(r, c, GroundArea.NOT_WALKABLE);
           }
         }
       }
     }
-    this.parkGrid[5][2] = GroundArea.NOT_WALKABLE; // QUICK FIX FOR SOME POND GRASS
-    console.dir(this.parkGrid);
+    this.grid.setTileValue(5, 2, GroundArea.NOT_WALKABLE); // QUICK FIX FOR SOME POND GRASS
+    console.dir(this.grid.getGrid());
     this.tables = new Tables(this.objects.filter((o) => o instanceof Table));
 
     await this.art!.images.load();
@@ -546,70 +318,69 @@ export default class Play extends Scene {
 
     this.ballGame = new BallGame(this, ball, playerAreas, ballerChillPositions);
 
-    const ballers = new Group(this, []);
+    // const ballers = new Group(this, []);
 
-    this.humans.push(
-      new Baller(
-        this,
-        {
-          x: 0,
-          y: 0,
-        },
-        "linda",
-        "play-ball",
-        this.ballGame,
-        ballers,
-      ),
-    );
+    // this.humans.push(
+    //   new Baller(
+    //     this,
+    //     {
+    //       x: 0,
+    //       y: 0,
+    //     },
+    //     "linda",
+    //     "play-ball",
+    //     this.ballGame,
+    //     ballers,
+    //   ),
+    // );
 
-    this.humans.push(
-      new Baller(
-        this,
-        {
-          x: 0,
-          y: 0,
-        },
-        "benny",
-        "play-ball",
-        this.ballGame,
-        ballers,
-      ),
-    );
+    // this.humans.push(
+    //   new Baller(
+    //     this,
+    //     {
+    //       x: 0,
+    //       y: 0,
+    //     },
+    //     "benny",
+    //     "play-ball",
+    //     this.ballGame,
+    //     ballers,
+    //   ),
+    // );
 
-    this.humans.push(
-      new Baller(
-        this,
-        {
-          x: 0,
-          y: 0,
-        },
-        "amanda",
-        "play-ball",
-        this.ballGame,
-        ballers,
-      ),
-    );
+    // this.humans.push(
+    //   new Baller(
+    //     this,
+    //     {
+    //       x: 0,
+    //       y: 0,
+    //     },
+    //     "amanda",
+    //     "play-ball",
+    //     this.ballGame,
+    //     ballers,
+    //   ),
+    // );
 
-    this.humans.push(
-      new Baller(
-        this,
-        {
-          x: 0,
-          y: 0,
-        },
-        "max",
-        "play-ball",
-        this.ballGame,
-        ballers,
-      ),
-    );
+    // this.humans.push(
+    //   new Baller(
+    //     this,
+    //     {
+    //       x: 0,
+    //       y: 0,
+    //     },
+    //     "max",
+    //     "play-ball",
+    //     this.ballGame,
+    //     ballers,
+    //   ),
+    // );
 
     const grls = new Group(this, [
-      StrollSpot.GRASS_BY_THE_POND,
       StrollSpot.CACTUSES,
+      StrollSpot.GRASS_BY_THE_POND,
       StrollSpot.SKATE_GROUND,
       StrollSpot.GRASS_BY_THE_POND,
-      StrollSpot.CACTUSES,
     ]);
 
     this.humans.push(
@@ -689,20 +460,156 @@ export default class Play extends Scene {
       h.init();
     }
 
-    const skaters = new Group(this, []);
+    // const skaters = new Group(this, []);
 
-    this.pushSkater(
-      new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl", skaters),
-    );
-    this.pushSkater(
-      new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl", skaters),
-    );
-    this.pushSkater(
-      new Skater(this, { x: 0, y: 0 }, "love", 10, "bench", skaters),
-    );
-    this.pushSkater(
-      new Skater(this, { x: 0, y: 0 }, "love", 10, "rail", skaters),
-    );
+    // this.pushSkater(
+    //   new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl", skaters),
+    // );
+    // this.pushSkater(
+    //   new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl", skaters),
+    // );
+    // this.pushSkater(
+    //   new Skater(this, { x: 0, y: 0 }, "love", 10, "bench", skaters),
+    // );
+    // this.pushSkater(
+    //   new Skater(this, { x: 0, y: 0 }, "love", 10, "rail", skaters),
+    // );
+
+    console.dir(this.grid.getGrid().length);
+
+    console.dir(this.spots);
+  }
+
+  getBallGame(): BallGame {
+    return this.ballGame;
+  }
+
+  getSpotPositions(spot: StrollSpot): Vec2[] {
+    const spotState = this.getStrollSpot(spot);
+
+    return spotState.positions.map((p) => p.pos);
+  }
+
+  update(dt: number) {
+    super.update(dt);
+
+    this.ballGame.update(dt);
+
+    // Sort objects
+
+    const renderSortCompValue = new Map<number, number>();
+    const ballHolder = this.humans.find((h) => this.ballGame.hasGotBall(h.id));
+    const ballHolderAnim = ballHolder?.animations.getPlaying() ?? null;
+    const shouldUseHolderBallSort =
+      ballHolder !== undefined &&
+      ballHolderAnim !== null &&
+      (ballHolderAnim.startsWith("idle-stand-") ||
+        ballHolderAnim.startsWith("shoot-"));
+
+    for (const o of this.objects) {
+      if (
+        o instanceof Ball &&
+        ballHolder !== undefined &&
+        shouldUseHolderBallSort
+      ) {
+        renderSortCompValue.set(
+          o.id,
+          ballHolder.direction === "n"
+            ? ballHolder.pos.y - 1
+            : ballHolder.pos.y + 1,
+        );
+        continue;
+      }
+
+      renderSortCompValue.set(o.id, o.pos.y);
+    }
+
+    for (const s of this.skaters) {
+      const obstacle = this.obstacles.find((o2) => o2.id === s.obstacle);
+
+      if (obstacle !== undefined) {
+        if (obstacle.type === "bowl") {
+          renderSortCompValue.set(s.id, obstacle.pos.y + 1);
+          continue;
+        }
+      }
+
+      const bench = this.benches.find((o2) => o2.id === s.bench);
+
+      if (bench !== undefined) {
+        renderSortCompValue.set(s.id, s.pos.y + 4);
+        continue;
+      }
+
+      renderSortCompValue.set(s.id, s.pos.y);
+    }
+
+    for (const h of this.humans) {
+      if (h.action === "fika" && h.isSitting()) {
+        const chair = this.objects.find(
+          (o) =>
+            o instanceof StaticImage &&
+            o.image.includes("chair") &&
+            o.pos.x === h.pos.x,
+        );
+
+        if (chair === undefined) throw new Error("Chair not found");
+
+        // Sitting on the far side of a table should render behind it.
+        if (h.direction === "n") {
+          renderSortCompValue.set(h.id, h.pos.y - 1);
+        } else {
+          renderSortCompValue.set(h.id, h.pos.y + 1);
+        }
+        if (chair === undefined) throw new Error("Chair not found");
+
+        continue;
+      }
+
+      renderSortCompValue.set(h.id, h.pos.y);
+    }
+
+    for (const o of this.staticImages) {
+      renderSortCompValue.set(o.id, o.pos.y);
+    }
+
+    for (const o of this.obstacles) {
+      renderSortCompValue.set(o.id, o.pos.y);
+    }
+
+    for (const o of this.benches) {
+      renderSortCompValue.set(o.id, o.pos.y);
+    }
+
+    for (const t of this.tables.getTables()) {
+      renderSortCompValue.set(t.id, t.pos.y);
+    }
+
+    const bridge = this.staticImages.find((s) => s.image === "bridge");
+
+    for (const d of this.ducks) {
+      const collision = getCollision(d, bridge!);
+
+      if (collision) {
+        renderSortCompValue.set(d.id, bridge!.pos.y - 1);
+      }
+    }
+
+    renderSortCompValue.set(this.cafe.id, this.cafe.pos.y);
+    renderSortCompValue.set(this.cafe.door.id, this.cafe.door.pos.y + 1);
+
+    this.sortObjects((s1, s2) => {
+      const v1 = renderSortCompValue.get(s1.id);
+      const v2 = renderSortCompValue.get(s2.id);
+
+      if (v1 === undefined || v2 === undefined) {
+        console.log(s1, s2);
+        console.log("Render sort error");
+        return 0;
+      }
+
+      return v1 - v2;
+    });
   }
 
   private createDucks() {
@@ -716,21 +623,25 @@ export default class Play extends Scene {
       return row >= minRow && row <= maxRow && col >= minCol && col <= maxCol;
     };
 
-    const getInitDuckPos = () => {
+    const getInitDuckPos = (id: number) => {
       while (true) {
-        const tile = getRandomFreeCell(this.parkGrid, [GroundArea.POND]);
+        const tile = this.grid.getRandomFreeCell([GroundArea.POND]);
+
         if (tile !== null && isWithinBounds(tile.row, tile.col)) {
           const pos = cellToPos(tile, this.art.tileSize);
-          this.occupyTile(pos);
+          this.grid.occupyTile(id, pos);
           return pos;
         }
       }
     };
 
     for (let n = 0; n < 8; ++n) {
-      const pos = getInitDuckPos();
       // console.log("POS", pos);
-      const duck = new Duck(this, pos);
+      const duck = new Duck(this, { x: 0, y: 0 });
+
+      const pos = getInitDuckPos(duck.id);
+
+      duck.pos = pos;
 
       duck.init();
 
@@ -751,10 +662,7 @@ export default class Play extends Scene {
     }
 
     this.initStrollSpotState(spot).set(this.getPosKey(pos), true);
-  }
-
-  getBallGame(): BallGame {
-    return this.ballGame;
+    const tile = posToCell(pos, this.tileSize);
   }
 
   private createObject(o: ParsedObject): ArtObject {
@@ -893,8 +801,8 @@ export default class Play extends Scene {
     }
   }
 
-  pushHuman(human: Human) {
-    let cell = getRandomFreeCell(this.parkGrid);
+  private pushHuman(human: Human) {
+    let cell = this.grid.getRandomFreeCell();
     if (cell === null) return;
 
     cell = {
@@ -908,133 +816,120 @@ export default class Play extends Scene {
     this.addObject(human);
   }
 
-  pushSkater(skater: Skater) {
-    const cell = getRandomFreeCell(this.getWalkabilityGrid(), [2]);
+  private pushSkater(skater: Skater) {
+    const cell = getRandomFreeCell(this.grid.getGrid(), [
+      GroundArea.SKATE_GROUND,
+    ]);
     if (cell === null) return;
     skater.pos = cellToPos(cell, this.tileSize);
     skater.init();
     this.skaters.push(skater);
     this.addObject(skater);
   }
+  private loadSkaterSprite(
+    name: string,
+    skaterJson: AsepriteJSON,
+    baseJson: AsepriteJSON,
+  ) {
+    const skaterKey = `${name}-skater`;
+    const baseKey = `${name}-base`;
 
-  update(dt: number) {
-    super.update(dt);
+    this.loadSprite(skaterKey, skaterJson);
+    this.loadSprite(baseKey, baseJson);
+  }
 
-    this.ballGame.update(dt);
-    // Sort objects
+  private loadBallerSprite(
+    name: string,
+    ballerJSON: AsepriteJSON,
+    baseJson: AsepriteJSON,
+  ) {
+    const ballerKey = `${name}-baller`;
+    const baseKey = `${name}-base`;
 
-    const renderSortCompValue = new Map<number, number>();
-    const ballHolder = this.humans.find((h) => this.ballGame.hasGotBall(h.id));
-    const ballHolderAnim = ballHolder?.animations.getPlaying() ?? null;
-    const shouldUseHolderBallSort =
-      ballHolder !== undefined &&
-      ballHolderAnim !== null &&
-      (ballHolderAnim.startsWith("idle-stand-") ||
-        ballHolderAnim.startsWith("shoot-"));
+    this.loadSprite(ballerKey, ballerJSON);
+    this.loadSprite(baseKey, baseJson);
+  }
 
-    for (const o of this.objects) {
-      if (
-        o instanceof Ball &&
-        ballHolder !== undefined &&
-        shouldUseHolderBallSort
-      ) {
-        renderSortCompValue.set(
-          o.id,
-          ballHolder.direction === "n"
-            ? ballHolder.pos.y - 1
-            : ballHolder.pos.y + 1,
-        );
-        continue;
-      }
+  private async loadStaticAssets() {
+    this.art!.images.add("tilemap", this.tilemap.tilemap);
 
-      renderSortCompValue.set(o.id, o.pos.y);
-    }
+    this.loadSkaterSprite(
+      "spike",
+      spikeSkaterJSON as AsepriteJSON,
+      spikeBaseJSON as AsepriteJSON,
+    );
+    this.loadSkaterSprite(
+      "kim",
+      kimSkaterJSON as AsepriteJSON,
+      kimBaseJSON as AsepriteJSON,
+    );
+    this.loadSkaterSprite(
+      "bobby",
+      bobbySkaterJSON as AsepriteJSON,
+      bobbyBaseJSON as AsepriteJSON,
+    );
 
-    for (const s of this.skaters) {
-      const obstacle = this.obstacles.find((o2) => o2.id === s.obstacle);
+    this.loadSkaterSprite(
+      "love",
+      loveSkaterJSON as AsepriteJSON,
+      loveBaseJSON as AsepriteJSON,
+    );
 
-      if (obstacle !== undefined) {
-        if (obstacle.type === "bowl") {
-          renderSortCompValue.set(s.id, obstacle.pos.y + 1);
-          continue;
-        }
-      }
+    this.loadSkaterSprite(
+      "jazz",
+      jazzSkaterJSON as AsepriteJSON,
+      jasmineBaseJSON as AsepriteJSON,
+    );
 
-      const bench = this.benches.find((o2) => o2.id === s.bench);
+    this.loadSprite("door-cafe", doorCafeJSON as AsepriteJSON);
+    this.loadSprite("foods", foodsCafeJSON as AsepriteJSON);
+    this.loadSprite("ball", ballJSON as AsepriteJSON);
+    this.loadSprite("duck", duckJSON as AsepriteJSON);
 
-      if (bench !== undefined) {
-        renderSortCompValue.set(s.id, s.pos.y + 4);
-        continue;
-      }
+    this.loadBallerSprite(
+      "linda",
+      lindaBallerJSON as AsepriteJSON,
+      lindaBaseJSON as AsepriteJSON,
+    );
+    this.loadBallerSprite(
+      "benny",
+      bennyBallerJSON as AsepriteJSON,
+      bennyBaseJSON as AsepriteJSON,
+    );
+    this.loadBallerSprite(
+      "max",
+      maxBallerJSON as AsepriteJSON,
+      maxBaseJSON as AsepriteJSON,
+    );
+    this.loadBallerSprite(
+      "amanda",
+      amandaBallerJSON as AsepriteJSON,
+      amandaBaseJSON as AsepriteJSON,
+    );
+    this.loadBallerSprite(
+      "nick",
+      nickBallerJSON as AsepriteJSON,
+      nickBaseJSON as AsepriteJSON,
+    );
 
-      renderSortCompValue.set(s.id, s.pos.y);
-    }
+    this.loadSprite("missy-base", missyJSON as AsepriteJSON);
+    this.loadSprite("sasha-base", sashaJSON as AsepriteJSON);
+    this.loadSprite("kit-base", kitJSON as AsepriteJSON);
 
-    for (const h of this.humans) {
-      if (h.action === "fika" && h.isSitting()) {
-        const chair = this.objects.find(
-          (o) =>
-            o instanceof StaticImage &&
-            o.image.includes("chair") &&
-            o.pos.x === h.pos.x,
-        );
+    this.loadSprite("hawk-base", hawkJSON as AsepriteJSON);
+    this.loadSprite("bowl-base", bowlJSON as AsepriteJSON);
+    // This is a transparent image for a "flat" obstacle... just bc static images require an image
 
-        if (chair === undefined) throw new Error("Chair not found");
+    this.art!.images.add(
+      "flat",
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAEklEQVR4nGNgGAWjYBSMglEwCjAAAGwAAWzQqWQAAAAASUVORK5CYII=",
+    );
 
-        // Sitting on the far side of a table should render behind it.
-        if (h.direction === "n") {
-          renderSortCompValue.set(h.id, h.pos.y - 1);
-        } else {
-          renderSortCompValue.set(h.id, h.pos.y + 1);
-        }
-        if (chair === undefined) throw new Error("Chair not found");
+    await this.art!.images.load();
+  }
 
-        continue;
-      }
-
-      renderSortCompValue.set(h.id, h.pos.y);
-    }
-
-    for (const o of this.staticImages) {
-      renderSortCompValue.set(o.id, o.pos.y);
-    }
-
-    for (const o of this.obstacles) {
-      renderSortCompValue.set(o.id, o.pos.y);
-    }
-
-    for (const o of this.benches) {
-      renderSortCompValue.set(o.id, o.pos.y);
-    }
-
-    for (const t of this.tables.getTables()) {
-      renderSortCompValue.set(t.id, t.pos.y);
-    }
-
-    const bridge = this.staticImages.find((s) => s.image === "bridge");
-
-    for (const d of this.ducks) {
-      const collision = getCollision(d, bridge!);
-
-      if (collision) {
-        renderSortCompValue.set(d.id, bridge!.pos.y - 1);
-      }
-    }
-
-    renderSortCompValue.set(this.cafe.id, this.cafe.pos.y);
-    renderSortCompValue.set(this.cafe.door.id, this.cafe.door.pos.y + 1);
-
-    this.sortObjects((s1, s2) => {
-      const v1 = renderSortCompValue.get(s1.id);
-      const v2 = renderSortCompValue.get(s2.id);
-
-      if (v1 === undefined || v2 === undefined) {
-        console.log(s1, s2);
-        console.log("Render sort error");
-        return 0;
-      }
-
-      return v1 - v2;
-    });
+  private loadSprite(name: string, json: AsepriteJSON) {
+    this.art!.images.add(name, `/sprites/${name}.png`);
+    this.art!.spritesheets.create(name, name, json);
   }
 }

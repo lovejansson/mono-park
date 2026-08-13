@@ -74,6 +74,8 @@ export default class Renderer {
 
     if (this.art.isPlaying) {
       this.updateSceneAnimations(this.playScene, dt);
+      this.playScene.preUpdate(dt);
+
       this.playScene.update(dt);
 
       this.drawSceneCanvasObjects(this.playScene);
@@ -88,7 +90,10 @@ export default class Renderer {
       }
     } else {
       this.updateSceneAnimations(this.pauseScene, dt);
+      this.pauseScene.preUpdate(dt);
+
       this.pauseScene.update(dt);
+
       this.drawSceneCanvasObjects(this.pauseScene);
     }
 

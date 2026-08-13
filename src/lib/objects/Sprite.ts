@@ -1,6 +1,7 @@
 import AnimationManager from "../animations/AnimationManager.js";
 import ArtObject from "./ArtObject.ts";
 import type Scene from "../Scene.js";
+import type Path from "../Path.ts";
 import type { Vec2, Direction } from "../types.ts";
 import { posToCell } from "../utils.ts";
 
@@ -20,6 +21,7 @@ export default abstract class Sprite extends ArtObject {
   drawOffset: Vec2;
 
   path: PathState;
+  currentPath: Path | null;
 
   constructor(
     scene: Scene,
@@ -41,11 +43,10 @@ export default abstract class Sprite extends ArtObject {
       isOnPath: false,
       hasReachedGoal: false,
     };
+    this.currentPath = null;
   }
 
   abstract update(dt: number): void;
-
-  updateMovement(): void {}
 
   getGridCell() {
     return posToCell(this.pos, this.scene.art!.tileSize);

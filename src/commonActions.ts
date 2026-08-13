@@ -14,7 +14,7 @@ import Timer from "./Timer";
 import { isSamePos } from "./lib";
 import type Bench from "./Bench";
 import type Human from "./Human";
-import { GroundArea } from "./Play";
+import { GroundArea } from "./lib/Grid";
 
 export interface CommonUpdatable extends Updatable {
   readonly tag: CommonActionTag;
@@ -65,12 +65,13 @@ export class GoTo implements CommonUpdatable {
   private endAlignSeq: AnimationSequence | null;
   private hasPathPhaseFinished: boolean;
   private overlayFn?: (sprite: Sprite) => OverlayOptions;
-  private shouldBlockPath: boolean;
+  private walkableTiles: GroundArea[];
+
 
   constructor(
     human: Human,
     pos: Vec2,
-    shouldBlockPath: boolean = false,
+    walkableTiles: GroundArea[] = [GroundArea.GRASS, GroundArea.GRAVEL],
     animBase?: {
       walk: string;
       idle: string;
@@ -88,7 +89,8 @@ export class GoTo implements CommonUpdatable {
     this.walkAnimBase = animBase?.walk ?? "walk";
     this.idleAnimBase = animBase?.idle ?? "idle-stand";
     this.overlayFn = animBase?.overlayFn;
-    this.shouldBlockPath = shouldBlockPath;
+    this.walkableTiles = walkableTiles;
+  
   }
 
   init() {
@@ -107,7 +109,7 @@ export class GoTo implements CommonUpdatable {
     } else {
       this.startPathPhase(scene);
     }
-     console.log(this.human.name, this.path?.getCurrentPath())
+    //  console.log(this.human.name, this.path?.getCurrentPath())
   }
 
   update(dt: number): void {
@@ -125,8 +127,23 @@ export class GoTo implements CommonUpdatable {
     }
 
     if (!this.hasPathPhaseFinished) {
+       
       if (this.path !== null && !this.path.hasReachedGoal) {
         this.path.update(dt);
+        if (this.path.isWaiting) {
+          if (
+            !this.human.animations.isPlaying(
+              `${this.idleAnimBase}-${this.human.direction}`,
+            )
+          ) {
+            console.log("IDLE?")
+            this.human.animations.play(
+              `${this.idleAnimBase}-${this.human.direction}`,
+            );
+          }
+
+          return;
+        }
 
         if (
           !this.human.animations.isPlaying(
@@ -143,6 +160,8 @@ export class GoTo implements CommonUpdatable {
 
         return;
       }
+
+      console.log("PATH IS DONE ARE SOMEONE STILL MOVING?")
 
       this.hasPathPhaseFinished = true;
       this.endAlignSeq = this.buildMoveSequence(this.actualGoalPos);
@@ -168,6 +187,7 @@ export class GoTo implements CommonUpdatable {
     if (
       !this.human.animations.isPlaying(`${this.idleAnimBase}-${animDirection}`)
     ) {
+      console.log("SETTING FINAL ANIM", this.idleAnimBase, animDirection)
       this.human.animations.play(`${this.idleAnimBase}-${animDirection}`, {
         overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
       });
@@ -200,16 +220,9 @@ export class GoTo implements CommonUpdatable {
       return;
     }
 
-    this.path = new Path(
-      this.human,
-      this.pathGoalPos,
-      scene.parkGrid,
-      [GroundArea.GRASS, GroundArea.GRAVEL],
-    );
+    this.path = new Path(this.human, this.pathGoalPos, scene.grid.getGrid(), this.walkableTiles);
+    this.path.start();
 
-    if (this.shouldBlockPath) {
-      this.human.group.blockPath(this.path.getCurrentPath());
-    }
   }
 
   private buildMoveSequence(target: Vec2): AnimationSequence | null {

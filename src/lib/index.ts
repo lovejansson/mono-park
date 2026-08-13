@@ -32,3 +32,5 @@ export {
 } from "./SpritesheetsManager.ts";
 export { default as Path } from "./Path.ts";
 export {cellToPos, getPosDiff, isSameCell, isSamePos, manhattan, normalize, posToCell, randomBool, randomEl, randomIndex, randomInt, randomOdd, dist, euclidean} from "./utils.ts";
+export {default as PathCollisionManager } from "./PathCollisionManager.ts";
+export { GroundArea } from "./Grid.ts";

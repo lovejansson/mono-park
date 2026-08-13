@@ -68,8 +68,6 @@ export default class Duck extends Sprite {
             this.vel.y = 0;
             break;
         }
-        this.pos.x += this.vel.x;
-        this.pos.y += this.vel.y;
       } else {
         throw new Error("Animation " + anim + " not found!");
       }

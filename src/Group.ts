@@ -21,14 +21,13 @@ export default class Group {
   private walk: WalkState;
   private strollSpots: StrollSpot[];
   private currStrollSpotIdx: number;
-  private blockedPath: Cell[] | null; // Keep on path blocked at a time to prevent the humans from going on a straight line
 
   constructor(scene: Play, strollSpots: StrollSpot[]) {
     this.scene = scene;
     this.walk = { isWalking: false };
     this.strollSpots = strollSpots;
     this.currStrollSpotIdx = 0;
-    this.blockedPath = null;
+
   }
 
   getStrollSpot(): StrollSpot {
@@ -43,29 +42,8 @@ export default class Group {
     }
   }
 
-  blockPath(path: Cell[]): void {
-    // Unoccupy any previously blocked path so that max 1 is blocked at a time
-    if (this.blockedPath !== null) {
-      console.log("UNBLOCKING",this.blockedPath)
-      for (const c of this.blockedPath) {
-        this.scene.unoccupyTile(cellToPos(c, this.scene.tileSize));
-      }
-    }
-
-    const blockablePath = this.getMiddlePathCells(path);
-    const reservedPath: Cell[] = [];
-  console.log("BLOCKING", blockablePath)
-    for (const c of blockablePath) {
-    
-      if (this.scene.occupyTile(cellToPos(c, this.scene.tileSize))) {
-        reservedPath.push(c);
-      }
-    }
-
-    this.blockedPath = reservedPath;
-  }
-
   startWalk(leader: number): void {
+
     this.walk = {
       isWalking: true,
       leader,
@@ -73,14 +51,6 @@ export default class Group {
   }
 
   stopWalk(): void {
-    // Unoccupy any previously blocked path so that max 1 is blocked at a time
-    if (this.blockedPath !== null) {
-      for (const c of this.blockedPath) {
-        this.scene.unoccupyTile(cellToPos(c, this.scene.tileSize));
-      }
-    }
-
-    this.blockedPath = null;
 
     this.walk = { isWalking: false };
   }

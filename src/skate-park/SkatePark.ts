@@ -28,14 +28,7 @@ import { findClosestFreeCell } from "../grid.ts";
 import { getBoardCarryOverlay, getBoardFlipOverlay } from "./Skater.ts";
 import type Bench from "../Bench.ts";
 import { createAction, type Updatable } from "../actions.ts";
-
-function occupySkaterCell(skater: Skater, pos: Vec2 = skater.pos): void {
-  (skater.scene as Play).occupyTile(pos);
-}
-
-function unoccupySkaterCell(skater: Skater): void {
-  (skater.scene as Play).unoccupyTile(skater.pos);
-}
+import { GroundArea } from "../lib/Grid.ts";
 
 function snapSkaterToWholeTile(skater: Skater): void {
   const cell = posToCell(skater.pos, skater.tileSize);
@@ -86,10 +79,6 @@ export default class SkatingAtPark implements SkateUpdatable {
 
           this.obstacle = null;
 
-          occupySkaterCell(this.skater, {
-            x: this.bench.pos.x,
-            y: this.bench.pos.y + this.tileSize * 2,
-          });
           this.currAction = createAction(CruiseTo.TAG, this.skater, {
             x: this.bench.pos.x,
             y: this.bench.pos.y + this.tileSize * 2,
@@ -106,10 +95,6 @@ export default class SkatingAtPark implements SkateUpdatable {
 
           this.obstacle.arrive(this.skater.id);
 
-          occupySkaterCell(
-            this.skater,
-            this.obstacle!.getArrivePos(this.skater.pos),
-          );
           this.currAction = createAction(
             CruiseTo.TAG,
             this.skater,
@@ -122,10 +107,6 @@ export default class SkatingAtPark implements SkateUpdatable {
           )!;
           this.obstacle.arrive(this.skater.id);
 
-          occupySkaterCell(
-            this.skater,
-            this.obstacle!.getArrivePos(this.skater.pos),
-          );
           this.currAction = createAction(
             CruiseTo.TAG,
             this.skater,
@@ -139,10 +120,6 @@ export default class SkatingAtPark implements SkateUpdatable {
 
           this.obstacle.arrive(this.skater.id);
 
-          occupySkaterCell(
-            this.skater,
-            this.obstacle!.getArrivePos(this.skater.pos),
-          );
           this.currAction = createAction(
             CruiseTo.TAG,
             this.skater,
@@ -243,7 +220,6 @@ export default class SkatingAtPark implements SkateUpdatable {
           throw new Error("Invalid state: bench and obstacle is null");
         }
       } else {
-        unoccupySkaterCell(this.skater);
         if (this.currAction.tag === SittingBench.TAG) {
           this.bench!.isFree = true;
           this.bench = null;
@@ -275,10 +251,6 @@ export default class SkatingAtPark implements SkateUpdatable {
 
           this.obstacle!.arrive(this.skater.id);
 
-          occupySkaterCell(
-            this.skater,
-            this.obstacle!.getArrivePos(this.skater.pos),
-          );
           this.currAction = createAction(
             CruiseTo.TAG,
             this.skater,
@@ -292,10 +264,6 @@ export default class SkatingAtPark implements SkateUpdatable {
           this.bench.isFree = false;
           this.obstacle = null;
 
-          occupySkaterCell(this.skater, {
-            x: this.bench.pos.x,
-            y: this.bench.pos.y + this.tileSize,
-          });
           this.currAction = createAction(CruiseTo.TAG, this.skater, {
             x: this.bench.pos.x,
             y: this.bench.pos.y + this.tileSize,
@@ -340,7 +308,7 @@ class RailObstacle implements SkateUpdatable {
     } else if (this.currAction.isComplete()) {
       if (this.currAction.tag === WaitingMyTurn.TAG) {
         snapSkaterToWholeTile(this.skater);
-        unoccupySkaterCell(this.skater);
+
         const start = this.obstacle.getClosestTrickStartPos(this.skater.pos);
         this.currAction = createAction(
           RailTricks.TAG,
@@ -556,8 +524,8 @@ class RailTricks implements SkateUpdatable {
           this.path = new Path(
             this.skater,
             this.start.pos,
-            (this.skater.scene as Play).parkGrid,
-            [2],
+            this.skater.scene.grid.getGrid(),
+            [GroundArea.SKATE_GROUND],
           );
 
           this.path.start();
@@ -623,14 +591,13 @@ class RailTricks implements SkateUpdatable {
 
           const closestCell = findClosestFreeCell(
             currCell,
-            (this.skater.scene as Play).getWalkabilityGrid(),
-            [2],
+            this.skater.scene.grid.getGrid(),
+            [GroundArea.SKATE_GROUND],
           );
 
           if (closestCell === null) throw Error("WHY");
 
           const idlePos = cellToPos(closestCell, this.tileSize);
-          occupySkaterCell(this.skater, idlePos);
 
           if (isSamePos(idlePos, this.skater.pos)) {
             this.returnedToIdleWithoutPath = true;
@@ -641,8 +608,8 @@ class RailTricks implements SkateUpdatable {
           this.path = new Path(
             this.skater,
             idlePos,
-            (this.skater.scene as Play).parkGrid,
-            [2],
+            this.skater.scene.grid.getGrid(),
+            [GroundArea.SKATE_GROUND],
           );
 
           this.path.start();
@@ -866,8 +833,7 @@ class BowlObstacle implements SkateUpdatable {
 
         // After WaitingMyTurn we got a new idle position assigned to the skater where they should end the round
         snapSkaterToWholeTile(this.skater);
-        unoccupySkaterCell(this.skater);
-      
+
         const start = this.obstacle.getClosestTrickStartPos(this.skater.pos);
         this.currAction = createAction(
           BowlTricks.TAG,
@@ -968,8 +934,8 @@ class BowlTricks implements SkateUpdatable {
           this.path = new Path(
             this.skater,
             this.start.pos,
-            (this.skater.scene as Play).parkGrid,
-            [2],
+            this.skater.scene.grid.getGrid(),
+            [GroundArea.SKATE_GROUND],
           );
 
           this.path.start();
@@ -1024,14 +990,13 @@ class BowlTricks implements SkateUpdatable {
 
           const closestCell = findClosestFreeCell(
             currCell,
-            (this.skater.scene as Play).getWalkabilityGrid(),
-            [2],
+            this.skater.scene.grid.getGrid(),
+            [GroundArea.SKATE_GROUND],
           );
 
           if (closestCell === null) throw Error("WHY");
 
           const idlePos = cellToPos(closestCell, this.tileSize);
-          occupySkaterCell(this.skater, idlePos);
 
           if (isSamePos(idlePos, this.skater.pos)) {
             this.returnedToIdleWithoutPath = true;
@@ -1042,8 +1007,8 @@ class BowlTricks implements SkateUpdatable {
           this.path = new Path(
             this.skater,
             idlePos,
-            (this.skater.scene as Play).parkGrid,
-            [2],
+            this.skater.scene.grid.getGrid(),
+            [GroundArea.SKATE_GROUND],
           );
 
           this.path.start();
@@ -1203,12 +1168,9 @@ class CruiseTo implements SkateUpdatable {
     if (isSamePos(this.skater.pos, to)) {
       this.path = null;
     } else {
-      this.path = new Path(
-        this.skater,
-        to,
-        (this.skater.scene as Play).parkGrid,
-        [2],
-      );
+      this.path = new Path(this.skater, to, this.skater.scene.grid.getGrid(), [
+        GroundArea.SKATE_GROUND,
+      ]);
       this.path.start();
     }
 
