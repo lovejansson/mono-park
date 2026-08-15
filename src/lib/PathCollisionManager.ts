@@ -31,22 +31,20 @@ export default class PathCollisionManager {
   }
 
   pushIntent(id: number, currentTile: Cell, nextTile: Cell) {
-    // console.log("PUSH INTENT");
-
     this.intents.set(id, { currentTile, nextTile, wait: 0, result: null });
   }
 
-  commitMove(id: number, tile: Cell) {
+  commitMove(id: number) {
     const currPathState = this.getPathState(id);
-
-    // console.log("COMMIT MOVE");
-    // console.log(id, currPathState.currentTile, currPathState.nextTile);
 
     this.scene.grid.unoccupyTile(
       cellToPos(currPathState.currentTile, this.scene.art.tileSize),
     );
 
-    this.scene.grid.occupyTile(id, cellToPos(tile, this.scene.art.tileSize));
+    this.scene.grid.occupyTile(
+      id,
+      cellToPos(currPathState.nextTile, this.scene.art.tileSize),
+    );
 
     this.deletePathState(id);
   }
@@ -68,57 +66,50 @@ export default class PathCollisionManager {
   /**
    * The conflict resolution phase.
    *
-   * Resolves all registered intents for moving a tile by deciding which sprite gets to move and which gets to stay and wait.
+   * Resolves all registered intents for moving a tile by deciding which sprite gets to move and which has to wait.
    */
   resolve() {
     // 1. Group all of the intents for the same tile.
 
-    const tileGroups: Map<string, { tile: Cell; id: number; wait: number,curr: Cell }[]> =
-      new Map();
+    const tileGroups: Map<
+      string,
+      { nextTile: Cell; id: number; wait: number; currTile: Cell }[]
+    > = new Map();
 
     let tileKey = "";
-    let existingValue: { tile: Cell; id: number; wait: number, curr: Cell }[] | undefined =
-      undefined;
+    let existingValue:
+      | { nextTile: Cell; id: number; wait: number; currTile: Cell }[]
+      | undefined = undefined;
 
     for (const [id, state] of this.intents) {
       tileKey = `${state.nextTile.row}:${state.nextTile.col}`;
       existingValue = tileGroups.get(tileKey);
 
       if (existingValue) {
-        existingValue.push({ tile: state.nextTile, id, wait: state.wait,   curr: state.currentTile, });
+        existingValue.push({
+          nextTile: state.nextTile,
+          id,
+          wait: state.wait,
+          currTile: state.currentTile,
+        });
       } else {
         tileGroups.set(tileKey, [
           {
             id,
-            tile: state.nextTile,
-            curr: state.currentTile,
+            nextTile: state.nextTile,
+            currTile: state.currentTile,
             wait: state.wait,
           },
         ]);
       }
     }
 
-    // 2. Decide which sprite in each group who gets to move while increasing wait tick for the ones who need to wait.
+    // 2. Decide which sprite in each group who gets to move while increasing wait tick for the ones who need to wait
 
-    let tileNumbers = [0, 0];
     let tile = { row: 0, col: 0 };
 
-    if(tileGroups.size > 0)  console.log(tileGroups)
-
-   
-    // console.log(this.scene.grid.isTileWalkable({row: 20, col: 10}, this.walkableTiles))
-
-
-    for (const [tileKey, sprites] of tileGroups) {
-      tileNumbers = tileKey.split(":").map(Number);
-      tile = {
-        row: tileNumbers[0],
-        col: tileNumbers[1],
-      };
-
-      const ground = this.scene.grid.getGround(tile);
-
-      // console.log(ground, this.scene.grid.isTileOccupied(tile));
+    for (const [_, sprites] of tileGroups) {
+      tile = sprites[0].nextTile;
 
       // If some sprite occupied a tile prehand (spots) , they can have it.
       if (this.scene.grid.isTileOccupied(tile)) {
@@ -135,53 +126,31 @@ export default class PathCollisionManager {
         continue;
       }
 
-      if (
-        this.scene.grid.isTileWalkable(
-          { row: tileNumbers[0], col: tileNumbers[1] },
-          this.walkableTiles,
-        )
-      ) {
-        let candidate = 0;
-        let maxWait = -1;
+      // if (!this.scene.grid.isTileWalkable(tile, this.walkableTiles)) {
+      //   throw new Error(
+      //     "Path should not have been created on a non walkable tile",
+      //   );
+      // }
+      // Pick sprite with longest wait time
 
-        for (const s of sprites) {
-          if (s.wait > maxWait) {
-            candidate = s.id;
-            maxWait = s.wait;
-          }
-        }
+      let candidate = 0;
+      let maxWait = -1;
 
-        for (const s of sprites) {
-          if (s.id === candidate) {
-            this.setResolutionResult(s.id, ResolutionResult.MOVE);
-          } else {
-            this.setResolutionResult(s.id, ResolutionResult.WAIT);
-          }
+      for (const s of sprites) {
+        if (s.wait > maxWait) {
+          candidate = s.id;
+          maxWait = s.wait;
         }
-      } else {
-        // If tile is not walkable everyone has to wait
-        for (const s of sprites) {
+      }
+
+      for (const s of sprites) {
+        if (s.id === candidate) {
+          this.setResolutionResult(s.id, ResolutionResult.MOVE);
+        } else {
           this.setResolutionResult(s.id, ResolutionResult.WAIT);
         }
       }
     }
-
-    // Check if any "WAIT" results could be a "MOVE" based on the fact that the sprite in the tile next to them is about to move.
-
-    // for (const [id, state] of this.intents) {
-    //   if (state.result === ResolutionResult.WAIT) {
-    //     for (const [id2, state2] of this.intents) {
-    //       if (
-    //         state2.result === ResolutionResult.MOVE &&
-    //         this.scene.grid.isTileOccupied(state.nextTile) &&
-    //         this.scene.grid.getSpriteAtOccupiedTile(state.nextTile) === id2 &&
-    //         isSameCell(state2.currentTile, state.nextTile)
-    //       ) {
-    //         this.setResolutionResult(id, ResolutionResult.MOVE);
-    //       }
-    //     }
-    //   }
-    // }
   }
 
   hasMoveIntent(id: number): boolean {

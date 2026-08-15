@@ -6,6 +6,7 @@ import {
   type CommonUpdatable,
 } from "../commonActions.ts";
 import type Human from "../Human.ts";
+import { GroundArea } from "../lib/Grid.ts";
 import Path from "../lib/Path.ts";
 import type { Direction, Vec2 } from "../lib/types.ts";
 import { isSamePos, randomEl, randomInt } from "../lib/utils.ts";
@@ -171,11 +172,7 @@ class WaitForPass implements PlayBallUpdatable {
 
       this.human.scene.grid.unoccupyTile(this.human.pos);
 
-      this.path = new Path(
-        this.human,
-        passTargetPos,
-        this.human.scene.grid.getGrid(),
-      );
+      this.path = new Path(this.human, passTargetPos, [GroundArea.GRASS]);
 
       this.path.start();
     }

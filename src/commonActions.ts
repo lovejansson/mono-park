@@ -1,12 +1,7 @@
 import type { Updatable } from "./actions";
 import type { Sprite, Vec2 } from "./lib";
-import type { Cell, Direction } from "./lib/types";
-import {
-  AnimationSequence,
-  cellToPos,
-  getPosDiff,
-  TransitionType,
-} from "./lib";
+import type { Direction } from "./lib/types";
+import { AnimationSequence, TransitionType } from "./lib";
 import type { OverlayOptions } from "./lib";
 import { Path } from "./lib";
 import type Play from "./Play";
@@ -66,12 +61,14 @@ export class GoTo implements CommonUpdatable {
   private hasPathPhaseFinished: boolean;
   private overlayFn?: (sprite: Sprite) => OverlayOptions;
   private walkableTiles: GroundArea[];
-
+  private startDelay: number;
+  private delayTimer: Timer;
 
   constructor(
     human: Human,
     pos: Vec2,
     walkableTiles: GroundArea[] = [GroundArea.GRASS, GroundArea.GRAVEL],
+    startDelay: number = 0,
     animBase?: {
       walk: string;
       idle: string;
@@ -90,7 +87,8 @@ export class GoTo implements CommonUpdatable {
     this.idleAnimBase = animBase?.idle ?? "idle-stand";
     this.overlayFn = animBase?.overlayFn;
     this.walkableTiles = walkableTiles;
-  
+    this.startDelay = startDelay;
+    this.delayTimer = new Timer();
   }
 
   init() {
@@ -104,16 +102,29 @@ export class GoTo implements CommonUpdatable {
 
     this.startAlignSeq = this.buildMoveSequence(this.pathStartPos);
 
-    if (this.startAlignSeq !== null) {
+    if (this.startDelay > 0) {
+      this.delayTimer.start(this.startDelay);
+    } else if (this.startAlignSeq !== null) {
       this.startAlignSeq.start();
     } else {
       this.startPathPhase(scene);
     }
-    //  console.log(this.human.name, this.path?.getCurrentPath())
   }
 
   update(dt: number): void {
     const scene = this.human.scene as Play;
+
+    if (this.startDelay > 0) {
+      if (this.delayTimer.isStopped) {
+        this.startDelay = 0;
+        if (this.startAlignSeq !== null) {
+          this.startAlignSeq.start();
+        } else {
+          this.startPathPhase(scene);
+        }
+      }
+      return;
+    }
 
     if (this.startAlignSeq !== null) {
       this.startAlignSeq.update(dt);
@@ -127,7 +138,6 @@ export class GoTo implements CommonUpdatable {
     }
 
     if (!this.hasPathPhaseFinished) {
-       
       if (this.path !== null && !this.path.hasReachedGoal) {
         this.path.update(dt);
         if (this.path.isWaiting) {
@@ -136,7 +146,6 @@ export class GoTo implements CommonUpdatable {
               `${this.idleAnimBase}-${this.human.direction}`,
             )
           ) {
-            console.log("IDLE?")
             this.human.animations.play(
               `${this.idleAnimBase}-${this.human.direction}`,
             );
@@ -161,8 +170,6 @@ export class GoTo implements CommonUpdatable {
         return;
       }
 
-      console.log("PATH IS DONE ARE SOMEONE STILL MOVING?")
-
       this.hasPathPhaseFinished = true;
       this.endAlignSeq = this.buildMoveSequence(this.actualGoalPos);
 
@@ -183,11 +190,11 @@ export class GoTo implements CommonUpdatable {
       return;
     }
 
-    const animDirection = this.getAnimDirection();
+    const animDirection = this.human.direction;
     if (
       !this.human.animations.isPlaying(`${this.idleAnimBase}-${animDirection}`)
     ) {
-      console.log("SETTING FINAL ANIM", this.idleAnimBase, animDirection)
+      console.log("SETTING FINAL ANIM", this.idleAnimBase, animDirection);
       this.human.animations.play(`${this.idleAnimBase}-${animDirection}`, {
         overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
       });
@@ -201,7 +208,7 @@ export class GoTo implements CommonUpdatable {
     if (!isSamePos(this.human.pos, this.actualGoalPos)) return false;
 
     return this.human.animations.isPlaying(
-      `${this.idleAnimBase}-${this.getAnimDirection()}`,
+      `${this.idleAnimBase}-${this.human.direction}`,
     );
   }
 
@@ -220,9 +227,12 @@ export class GoTo implements CommonUpdatable {
       return;
     }
 
-    this.path = new Path(this.human, this.pathGoalPos, scene.grid.getGrid(), this.walkableTiles);
+    this.path = new Path(
+      this.human,
+      this.pathGoalPos,
+      this.walkableTiles,
+    );
     this.path.start();
-
   }
 
   private buildMoveSequence(target: Vec2): AnimationSequence | null {
@@ -265,25 +275,6 @@ export class GoTo implements CommonUpdatable {
     if (steps.length === 0) return null;
 
     return new AnimationSequence(this.human, steps);
-  }
-
-  private getAnimDirection(): "n" | "e" | "s" | "w" {
-    switch (this.human.direction) {
-      case "n":
-      case "ne":
-      case "nw":
-        return "n";
-      case "s":
-      case "se":
-      case "sw":
-        return "s";
-      case "e":
-        return "e";
-      case "w":
-        return "w";
-      default:
-        return "s";
-    }
   }
 }
 
@@ -329,9 +320,11 @@ export class SitOnBench implements CommonUpdatable {
   static TAG: "sit-bench" = "sit-bench";
   readonly tag: "sit-bench" = SitOnBench.TAG;
   private human: Human;
-  private timer: Timer;
+  private timer: Timer | null;
   private duration: number | null;
   private bench: Bench;
+  private animSeqSitDown: AnimationSequence | null;
+  private animSeqStandUp: AnimationSequence | null;
 
   constructor(human: Human, bench: Bench, duration: number | null = null) {
     this.human = human;
@@ -339,22 +332,72 @@ export class SitOnBench implements CommonUpdatable {
     this.duration = duration;
     this.bench = bench;
     this.timer = new Timer();
+    this.animSeqSitDown = new AnimationSequence(this.human, [
+      {
+        anim: "walk-n",
+        type: TransitionType.Distance,
+        transition: { dx: 0, dy: -this.human.tileSize },
+      },
+    ]);
+
+    this.animSeqStandUp = new AnimationSequence(this.human, [
+      {
+        anim: "walk-s",
+        type: TransitionType.Distance,
+        transition: { dx: 0, dy: this.human.tileSize },
+      },
+    ]);
   }
 
   init() {
     if (this.duration !== null) {
-      this.timer.start(this.duration);
+      this.timer!.start(this.duration);
     }
 
     this.human.direction = "s";
-    this.human.animations.play("idle-sit-s");
-    this.human.pos.x = this.bench.pos.x;
-    this.human.pos.y = this.bench.pos.y + (this.human.tileSize / 4) * 3;
+
+    this.animSeqSitDown!.start();
+    this.human.direction = "n";
   }
-  update(_: number): void {}
+
+  update(dt: number): void {
+    if (this.animSeqStandUp?.hasStarted()) {
+
+      if (this.animSeqStandUp.isFinished) {
+        this.human.direction = "s";
+        this.human.pos.y = this.bench.pos.y + this.bench.height;
+        this.human.animations.play("idle-stand-s");
+        this.animSeqStandUp = null;
+      } else {
+        this.animSeqStandUp.update(dt);
+      }
+      return;
+    }
+
+    if (this.animSeqSitDown?.hasStarted()) {
+
+      if (this.animSeqSitDown.isFinished) {
+
+        this.human.pos.y -= 4;
+        this.human.direction = "s";
+        this.human.animations.play("idle-sit-s");
+        this.animSeqSitDown = null;
+      } else {
+        this.animSeqSitDown.update(dt);
+      }
+      return;
+    }
+
+    if (this.timer?.isStopped) {
+      this.human.pos.y += 4;
+      this.animSeqStandUp!.start();
+      this.timer = null;
+      return;
+    }
+  }
 
   isComplete(): boolean {
-    return this.timer !== null && this.timer.isStopped;
+    return this.animSeqStandUp === null;
   }
 }
 

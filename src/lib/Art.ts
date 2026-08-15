@@ -43,7 +43,7 @@ export default class Art {
   isPlaying: boolean;
 
   private config: ArtConfig;
-  private startTime: Date | null;
+   startTime: Date | null;
   private currId: number;
   private renderer!: Renderer;
 
@@ -98,7 +98,6 @@ export default class Art {
 
     this.config.play.art = this;
     this.config.pause.art = this;
-    
 
     await this.config.play.init();
     await this.config.pause.init();
@@ -107,7 +106,7 @@ export default class Art {
       this.config.container ?? CONTAINER_SELECTOR_DEFAULT,
     );
 
-    window.addEventListener("keydown", (e) => {
+    addEventListener("keydown", (e) => {
       const key = e.key.toLowerCase();
       if (["arrowup", "w"].includes(key)) this.keys.up = true;
       if (["arrowright", "d"].includes(key)) this.keys.right = true;
@@ -116,7 +115,7 @@ export default class Art {
       if (key === " ") this.keys.space = true;
     });
 
-    window.addEventListener("keyup", (e) => {
+    addEventListener("keyup", (e) => {
       const key = e.key.toLowerCase();
       if (["arrowup", "w"].includes(key)) this.keys.up = false;
       if (["arrowright", "d"].includes(key)) this.keys.right = false;
@@ -126,9 +125,12 @@ export default class Art {
     });
     try {
       this.renderer.run();
+
+      console.log(new Date());
     } catch (e) {
       if (this.startTime) {
         const { hours, minutes, seconds } = diffHMS(new Date(), this.startTime);
+         this.audio.beep();
         console.log(`Time since start ${hours}:${minutes}:${seconds}`);
       }
       console.error(e);
@@ -150,7 +152,7 @@ export default class Art {
   }
 }
 
-function diffHMS(date1: Date, date2: Date) {
+export function diffHMS(date1: Date, date2: Date) {
   let diff = Math.abs(date2.getTime() - date1.getTime());
   const hours = Math.floor(diff / (1000 * 60 * 60));
   diff -= hours * 1000 * 60 * 60;

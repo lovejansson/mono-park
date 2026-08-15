@@ -1,6 +1,8 @@
 import type Human from "../Human";
 import {
   AnimationSequence,
+  GroundArea,
+  Sprite,
   TransitionType,
   type Direction,
   type Vec2,
@@ -605,10 +607,10 @@ class GiveOrder implements CafeUpdatable {
             this.human.pos,
             this.human.scene.art!.tileSize,
           );
-          this.goTo = new GoTo(this.human, goalPos, {
+          this.goTo = new GoTo(this.human, goalPos,  [GroundArea.GRASS, GroundArea.GRAVEL, GroundArea.BRICKS],0, {
             walk: "walk-hold",
             idle: "idle-stand-hold",
-            overlayFn: (human: Human) =>
+            overlayFn: (human: Sprite) =>
               getFoodOverlay(human.direction, "pizza"),
           });
           this.goTo.init();
@@ -795,7 +797,7 @@ class Eat implements CafeUpdatable {
   init() {}
 
   update(_: number): void {
-    console.log("EATING????");
+
     if (!this.human.animations.isPlaying(`eat-${this.human.direction}`)) {
       this.human.animations.play(`eat-${this.human.direction}`, {
         overlay: getFoodOverlay(this.human.direction, "pizza"),

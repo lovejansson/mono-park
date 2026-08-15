@@ -26,7 +26,7 @@ export default class Skater extends Human {
     name: string,
     skill: Skill,
     initAction: ActionTag,
-     group: Group
+    group: Group,
   ) {
     super(scene, pos, name, group);
 
@@ -54,15 +54,15 @@ export default class Skater extends Human {
     ) => {
       const updateType = AnimationPositionUpdates[anim];
 
-      // console.log("ANIMATION CHANGE ", anim)
-
       switch (updateType) {
         case PositionUpdateType.DELTA:
           const motion = getAnimationMotion(anim);
+
           if (!motion) throw new Error("Motion data not found for " + anim);
 
           const motionIndex =
             currentFrame + loopCount * Math.max(totalFrames, 1);
+
           const delta = motion[motionIndex];
 
           if (!delta)
@@ -75,14 +75,6 @@ export default class Skater extends Human {
 
           break;
         case PositionUpdateType.VEL:
-          //  console.log("UPDATING POS ", )
-          //           console.log(posToCell(this.pos, this.tileSize))
-          // if(this.path.isOnPath && this.path.hasReachedGoal){
-          //   console.log("WANT TO UPDATE ANIM BUT HAS REACHED DESTINATION")
-          //   console.log(posToCell(this.pos, this.tileSize))
-          //   return;
-          // }
-
           let speed = 0;
 
           if (
@@ -131,6 +123,11 @@ export default class Skater extends Human {
               this.vel.x = -speed;
               this.vel.y = 0;
               break;
+          }
+
+          if (this.currentPath?.isWaiting || this.currentPath?.hasReachedGoal) {
+            this.vel.x = 0;
+            this.vel.y = 0;
           }
 
           this.pos.x += this.vel.x;

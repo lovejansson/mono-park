@@ -1,5 +1,3 @@
-import { cellToPos } from "./lib";
-import type { Cell } from "./lib/types";
 import { type StrollSpot } from "./Play";
 import type Play from "./Play";
 
@@ -15,43 +13,59 @@ type WalkStateActive = {
 type WalkState = WalkStateActive | WalkStateInactive;
 
 export default class Group {
-  private static readonly BLOCK_PATH_EDGE_OFFSET = 4;
-
   private scene: Play;
   private walk: WalkState;
   private strollSpots: StrollSpot[];
   private currStrollSpotIdx: number;
+  private isOccupyingStrollSpot: boolean;
 
   constructor(scene: Play, strollSpots: StrollSpot[]) {
     this.scene = scene;
     this.walk = { isWalking: false };
     this.strollSpots = strollSpots;
     this.currStrollSpotIdx = 0;
-
+    this.isOccupyingStrollSpot = false;
   }
 
   getStrollSpot(): StrollSpot {
     return this.strollSpots[this.currStrollSpotIdx];
   }
 
-  nextStrollSpot(): void {
-    if (this.currStrollSpotIdx === this.strollSpots.length - 1) {
-      this.currStrollSpotIdx = 0;
-    } else {
-      this.currStrollSpotIdx++;
+  selectNextAvailableStrollSpot(): boolean {
+    for (let offset = 1; offset < this.strollSpots.length; offset++) {
+      const nextSpotIdx =
+        (this.currStrollSpotIdx + offset) % this.strollSpots.length;
+      const nextSpot = this.strollSpots[nextSpotIdx];
+
+      if (!this.scene.isStrollSpotOccupied(nextSpot)) {
+        this.unoccupyCurrentStrollSpot();
+        this.currStrollSpotIdx = nextSpotIdx;
+        this.occupyCurrentStrollSpot();
+        return true;
+      }
     }
+
+    return false;
   }
 
-  startWalk(leader: number): void {
+  startWalk(leader: number): boolean {
+    if (
+      !this.occupyCurrentStrollSpot() &&
+      !this.selectNextAvailableStrollSpot()
+    ) {
+      return false;
+    }
 
+    this.scene.groupIsStrolling = true;
     this.walk = {
       isWalking: true,
       leader,
     };
+    return true;
   }
 
   stopWalk(): void {
-
+    this.scene.groupIsStrolling = false;
     this.walk = { isWalking: false };
   }
 
@@ -72,13 +86,20 @@ export default class Group {
     return this.walk.isWalking ? this.walk : null;
   }
 
-  private getMiddlePathCells(path: Cell[]): Cell[] {
-    const offset = Group.BLOCK_PATH_EDGE_OFFSET;
+  private occupyCurrentStrollSpot(): boolean {
+    if (this.isOccupyingStrollSpot) return true;
 
-    if (path.length <= offset * 2) {
-      return [];
-    }
+    this.isOccupyingStrollSpot = this.scene.occupyStrollSpot(
+      this.getStrollSpot(),
+    );
 
-    return path.slice(offset, path.length - offset);
+    return this.isOccupyingStrollSpot;
+  }
+
+  private unoccupyCurrentStrollSpot(): void {
+    if (!this.isOccupyingStrollSpot) return;
+
+    this.scene.unoccupyStrollSpot(this.getStrollSpot());
+    this.isOccupyingStrollSpot = false;
   }
 }

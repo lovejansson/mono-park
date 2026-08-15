@@ -37,6 +37,7 @@ export interface Updatable {
   init(): void;
   update(dt: number): void;
   isComplete(): boolean;
+ 
 }
 
 type Ctor<A extends unknown[], R> = new (...args: A) => R;

@@ -7,7 +7,7 @@ import {
 import { GoTo } from "./commonActions";
 import type Group from "./Group";
 
-import {  Sprite } from "./lib";
+import { Sprite } from "./lib";
 import type { OverlayOptions } from "./lib";
 import type { Direction, Vec2 } from "./lib/types";
 import type Play from "./Play";
@@ -26,18 +26,13 @@ export default class Human extends Sprite {
   currentAction!: Updatable; // current outer action for this human
   group: Group;
 
-  constructor(
-    scene: Play,
-    pos: Vec2,
-    name: string,
-    group: Group
-  ) {
-    super(scene, pos, 16, 32, "s" );
+  constructor(scene: Play, pos: Vec2, name: string, group: Group) {
+    super(scene, pos, 16, 32, "s");
     this.name = name;
     this.tileSize = scene.art!.tileSize;
     this.action = null;
     this.drawOffset.y = -this.tileSize;
-      this.group = group;
+    this.group = group;
   }
 
   init(): void {
@@ -78,10 +73,9 @@ export default class Human extends Sprite {
                 this.vel.y = 0;
                 break;
             }
-        
+
             this.pos.x += this.vel.x;
             this.pos.y += this.vel.y;
-       
           } else {
             throw new Error("Animation " + anim + " not found!");
           }
@@ -103,7 +97,7 @@ export default class Human extends Sprite {
     return anim !== null && anim.includes("idle-sit");
   }
 
-  isIdle(): boolean  {
+  isIdle(): boolean {
     const anim = this.animations.getPlaying();
     return anim !== null && anim.includes("idle");
   }
@@ -160,6 +154,14 @@ const AnimationSettings: Record<string, AnimationSetting> = {
     repeat: true,
   },
   "idle-sit-s": {
+    positionUpdateType: PositionUpdateType.VEL,
+    repeat: true,
+  },
+  "idle-sit-e": {
+    positionUpdateType: PositionUpdateType.VEL,
+    repeat: true,
+  },
+  "idle-sit-w": {
     positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
   },

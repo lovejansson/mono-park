@@ -1,4 +1,4 @@
-import Art, { type ArtConfig } from "./Art";
+import Art, { diffHMS, type ArtConfig } from "./Art";
 import StaticImage from "./objects/StaticImage";
 import Sprite from "./objects/Sprite";
 import Scene from "./Scene";
@@ -73,9 +73,8 @@ export default class Renderer {
      */
 
     if (this.art.isPlaying) {
-      this.updateSceneAnimations(this.playScene, dt);
       this.playScene.preUpdate(dt);
-
+      this.updateSceneAnimations(this.playScene, dt);
       this.playScene.update(dt);
 
       this.drawSceneCanvasObjects(this.playScene);
@@ -87,6 +86,16 @@ export default class Renderer {
           this.art.tileSize,
           this.art.gridColor,
         );
+      }
+      if (this.art.startTime) {
+        const { hours, minutes, seconds } = diffHMS(
+          new Date(),
+          this.art.startTime,
+        );
+        if (minutes !== 0 && minutes % 5 === 0 && seconds === 0) {
+          this.art.audio.beep();
+          console.log(`Time since start ${hours}:${minutes}:${seconds}`);
+        }
       }
     } else {
       this.updateSceneAnimations(this.pauseScene, dt);
@@ -111,8 +120,10 @@ export default class Renderer {
   ) {
     ctx.beginPath();
     ctx.strokeStyle = strokeColor;
-    const offset = 0.5;
+    ctx.fillStyle = strokeColor;
 
+    const offset = 0.5;
+    ctx.imageSmoothingEnabled = false;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         ctx.moveTo(c * cellSize + offset, r * cellSize + offset);
@@ -123,6 +134,18 @@ export default class Renderer {
       }
     }
     ctx.stroke();
+    ctx.imageSmoothingEnabled = false;
+    ctx.font = "8px Source Code Pro";
+    ctx.imageSmoothingEnabled = false;
+    for (let r = 0; r < this.art.height / this.art.tileSize; ++r) {
+      ctx.fillText(r.toString(), 0, r * this.art.tileSize);
+    }
+
+    for (let c = 0; c < this.art.width / this.art.tileSize; ++c) {
+      ctx.fillText(c.toString(), c * this.art.tileSize, this.art.height);
+    }
+
+    ctx.imageSmoothingEnabled = false;
   }
 
   private updateSceneAnimations(scene: Scene, dt: number): void {

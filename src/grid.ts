@@ -82,7 +82,8 @@ export function createPathAStar(
   //   throw new Error("'to' cell is out of bounds");
 
   // console.log(from, to);
-
+//   console.log(grid)
+//  console.log(grid[from.row][from.col])
   if(isSameCell(from, to)) throw new Error("from cell and to cell are the same!")
   
 

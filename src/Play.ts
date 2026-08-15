@@ -3,12 +3,11 @@ import {
   posToCell,
   Scene,
   StaticImage,
-  type Cell,
   type Direction,
   type Vec2,
 } from "./lib/index.ts";
 import { type Tilemap } from "./types.ts";
-import { createGrid, getRandomFreeCell } from "./grid.ts";
+import { getRandomFreeCell } from "./grid.ts";
 import Obstacle, { Bowl, Flat, Rail } from "./skate-park/Obstacle.ts";
 import Skater from "./skate-park/Skater.ts";
 import { cellToPos } from "./lib";
@@ -22,8 +21,12 @@ import bobbyBaseJSON from "./assets/spritesheets/bobby-base.json";
 import loveSkaterJSON from "./assets/spritesheets/love-skater.json";
 import loveBaseJSON from "./assets/spritesheets/love-base.json";
 import jazzSkaterJSON from "./assets/spritesheets/jazz-skater.json";
-import jasmineBaseJSON from "./assets/spritesheets/jazz-base.json";
+import jazzBaseJSON from "./assets/spritesheets/jazz-base.json";
+import squidSkaterJSON from "./assets/spritesheets/squid-skater.json";
+import squidBaseJSON from "./assets/spritesheets/squid-base.json";
+
 import doorCafeJSON from "./assets/spritesheets/door-cafe.json";
+
 import amandaBaseJSON from "./assets/spritesheets/amanda-base.json";
 import amandaBallerJSON from "./assets/spritesheets/amanda-baller.json";
 import bennyBaseJSON from "./assets/spritesheets/benny-base.json";
@@ -52,12 +55,16 @@ import Table from "./cafe/Table.ts";
 import Cafe, { Tables } from "./cafe/Cafe.ts";
 import Human from "./Human.ts";
 import BallGame, { Ball, type PlayerArea } from "./ball/BallGame.ts";
-import Baller from "./ball/Baller.ts";
 import Group from "./Group.ts";
-import Stroller from "./stroller/Stroller.ts";
 import Duck from "./ducks/Duck.ts";
 import { getCollision } from "./lib/collision.ts";
 import { GroundArea } from "./lib/Grid.ts";
+import {
+  BowlObstacle,
+  FlatObstacle,
+  RailObstacle,
+} from "./skate-park/SkatePark.ts";
+import { SitOnBench } from "./commonActions.ts";
 
 export enum StrollSpot {
   POND_BENCH,
@@ -90,6 +97,10 @@ export default class Play extends Scene {
 
   private spots: StrollSpotData[];
   private strollSpotStates: Map<StrollSpot, StrollSpotState>;
+  private occupiedStrollSpots: Set<StrollSpot>;
+
+  groupIsStrolling: boolean;
+  private blockingSkateGround: number | null;
 
   constructor(tilemap: Tilemap) {
     super();
@@ -103,6 +114,9 @@ export default class Play extends Scene {
     this.humans = [];
     this.spots = [];
     this.strollSpotStates = new Map();
+    this.occupiedStrollSpots = new Set();
+    this.groupIsStrolling = false;
+    this.blockingSkateGround = null;
   }
 
   private getPosKey(pos: Vec2): string {
@@ -137,6 +151,41 @@ export default class Play extends Scene {
     state.set(key, true);
   }
 
+  isSkateGroundBlocked(): boolean {
+    return this.blockingSkateGround !== null;
+  }
+
+  isBlockingSkateGround(id: number): boolean {
+    return this.blockingSkateGround === id;
+  }
+
+  blockSkateGround(id: number): void {
+    if (this.blockingSkateGround !== null)
+      throw new Error("Skate ground is already blocked");
+    this.blockingSkateGround = id;
+  }
+
+  unblockSkateGround(id: number): void {
+    if (this.blockingSkateGround !== id)
+      throw new Error("Skate ground is not blocked by u");
+    this.blockingSkateGround = null;
+  }
+
+  isStrollSpotOccupied(strollSpot: StrollSpot): boolean {
+    return this.occupiedStrollSpots.has(strollSpot);
+  }
+
+  occupyStrollSpot(strollSpot: StrollSpot): boolean {
+    if (this.isStrollSpotOccupied(strollSpot)) return false;
+
+    this.occupiedStrollSpots.add(strollSpot);
+    return true;
+  }
+
+  unoccupyStrollSpot(strollSpot: StrollSpot): void {
+    this.occupiedStrollSpots.delete(strollSpot);
+  }
+
   private getStrollSpot(strollSpot: StrollSpot): StrollSpotData {
     const spot = this.spots.find((s) => s.spot === strollSpot);
 
@@ -146,7 +195,6 @@ export default class Play extends Scene {
   }
 
   getStrollPos(strollSpot: StrollSpot): { pos: Vec2; direction: Direction } {
-    console.log("GET STROLL POS");
     const spot = this.getStrollSpot(strollSpot);
     const state = this.getStrollSpotState(strollSpot);
 
@@ -156,8 +204,6 @@ export default class Play extends Scene {
 
     if (spotPos === undefined)
       throw new Error("No position found for stroll spot!");
-
-    console.dir(spotPos.pos);
 
     state.set(this.getPosKey(spotPos.pos), false);
 
@@ -175,7 +221,7 @@ export default class Play extends Scene {
 
     const flat = new Flat(
       this,
-      { x: 26 * this.tileSize, y: 4 * this.tileSize },
+      { x: 36 * this.tileSize, y: 8 * this.tileSize },
       this.art!.tileSize,
       this.art!.tileSize,
     );
@@ -299,8 +345,11 @@ export default class Play extends Scene {
         }
       }
     }
+
     this.grid.setTileValue(5, 2, GroundArea.NOT_WALKABLE); // QUICK FIX FOR SOME POND GRASS
+
     console.dir(this.grid.getGrid());
+
     this.tables = new Tables(this.objects.filter((o) => o instanceof Table));
 
     await this.art!.images.load();
@@ -314,7 +363,7 @@ export default class Play extends Scene {
 
     this.addObject(ball);
 
-    this.createDucks();
+    // this.createDucks();
 
     this.ballGame = new BallGame(this, ball, playerAreas, ballerChillPositions);
 
@@ -376,64 +425,64 @@ export default class Play extends Scene {
     //   ),
     // );
 
-    const grls = new Group(this, [
-      StrollSpot.CACTUSES,
-      StrollSpot.GRASS_BY_THE_POND,
-      StrollSpot.SKATE_GROUND,
-      StrollSpot.GRASS_BY_THE_POND,
-    ]);
-
-    this.humans.push(
-      new Stroller(
-        this,
-        {
-          x: 9 * this.tileSize,
-          y: this.tileSize * 11,
-        },
-        "missy",
-        "stroll",
-        grls,
-      ),
-    );
-
-    this.humans.push(
-      new Stroller(
-        this,
-        {
-          x: this.tileSize * 10,
-          y: this.tileSize * 10,
-        },
-        "kit",
-        "stroll",
-        grls,
-      ),
-    );
-
-    this.humans.push(
-      new Stroller(
-        this,
-        {
-          x: this.tileSize * 8,
-          y: this.tileSize * 10,
-        },
-        "sasha",
-        "stroll",
-        grls,
-      ),
-    );
-
-    const gayCouple = new Group(this, [
-      StrollSpot.POND_BENCH,
-      StrollSpot.CACTUSES,
-      StrollSpot.SKATE_GROUND,
-      StrollSpot.POND_BENCH,
-    ]);
+    // const grls = new Group(this, [
+    //   StrollSpot.CACTUSES,
+    //   StrollSpot.GRASS_BY_THE_POND,
+    //   StrollSpot.SKATE_GROUND,
+    //   StrollSpot.GRASS_BY_THE_POND,
+    // ]);
 
     // this.humans.push(
     //   new Stroller(
     //     this,
     //     {
-    //       x: this.tileSize * 12,
+    //       x: 9 * this.tileSize,
+    //       y: this.tileSize * 11,
+    //     },
+    //     "missy",
+    //     "stroll",
+    //     grls,
+    //   ),
+    // );
+
+    // this.humans.push(
+    //   new Stroller(
+    //     this,
+    //     {
+    //       x: this.tileSize * 10,
+    //       y: this.tileSize * 10,
+    //     },
+    //     "kit",
+    //     "stroll",
+    //     grls,
+    //   ),
+    // );
+
+    // this.humans.push(
+    //   new Stroller(
+    //     this,
+    //     {
+    //       x: this.tileSize * 8,
+    //       y: this.tileSize * 10,
+    //     },
+    //     "sasha",
+    //     "stroll",
+    //     grls,
+    //   ),
+    // );
+
+    // const gayCouple = new Group(this, [
+    //   StrollSpot.POND_BENCH,
+    //   StrollSpot.CACTUSES,
+    //   StrollSpot.SKATE_GROUND,
+    //   StrollSpot.POND_BENCH,
+    // ]);
+
+    // this.humans.push(
+    //   new Stroller(
+    //     this,
+    //     {
+    //       x: this.tileSize * 9,
     //       y: this.tileSize * 4,
     //     },
     //     "hawk",
@@ -446,8 +495,8 @@ export default class Play extends Scene {
     //   new Stroller(
     //     this,
     //     {
-    //       x: this.tileSize * 9,
-    //       y: this.tileSize * 5,
+    //       x: this.tileSize * 8,
+    //       y: this.tileSize * 4,
     //     },
     //     "bowl",
     //     "stroll",
@@ -460,24 +509,31 @@ export default class Play extends Scene {
       h.init();
     }
 
-    // const skaters = new Group(this, []);
+    const skaters = new Group(this, []);
 
-    // this.pushSkater(
-    //   new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl", skaters),
-    // );
-    // this.pushSkater(
-    //   new Skater(this, { x: 0, y: 0 }, "love", 10, "bowl", skaters),
-    // );
-    // this.pushSkater(
-    //   new Skater(this, { x: 0, y: 0 }, "love", 10, "bench", skaters),
-    // );
-    // this.pushSkater(
-    //   new Skater(this, { x: 0, y: 0 }, "love", 10, "rail", skaters),
-    // );
+    this.pushSkater(
+      new Skater(this, { x: 0, y: 0 }, "jazz", 10, "bowl", skaters),
+    );
 
-    console.dir(this.grid.getGrid().length);
+    this.pushSkater(
+      new Skater(this, { x: 0, y: 0 }, "bobby", 10, "bowl", skaters),
+    );
 
-    console.dir(this.spots);
+    this.pushSkater(
+      new Skater(this, { x: 0, y: 0 }, "love", 10, "bench", skaters),
+    );
+
+    this.pushSkater(
+      new Skater(this, { x: 0, y: 0 }, "spike", 10, "rail", skaters),
+    );
+
+    this.pushSkater(
+      new Skater(this, { x: 0, y: 0 }, "squid", 4, "flat", skaters),
+    );
+
+    // console.dir(this.grid.getGrid().length);
+
+    // console.dir(this.spots);
   }
 
   getBallGame(): BallGame {
@@ -679,9 +735,22 @@ export default class Play extends Scene {
         this.addObject(bench);
 
         if (!bench.isAtSkatePark) {
+          console.log(
+            "Hejej",
+            posToCell(
+              { x: bench.pos.x, y: bench.pos.y + bench.height },
+              this.tileSize,
+            ),
+          );
+
           this.pushSpot(
             StrollSpot.POND_BENCH,
-            { x: bench.pos.x, y: bench.pos.y + this.tileSize },
+            { x: bench.pos.x + this.tileSize, y: bench.pos.y + bench.height },
+            "s",
+          );
+          this.pushSpot(
+            StrollSpot.POND_BENCH,
+            { x: bench.pos.x, y: bench.pos.y + bench.height },
             "s",
           );
         }
@@ -817,10 +886,9 @@ export default class Play extends Scene {
   }
 
   private pushSkater(skater: Skater) {
-    const cell = getRandomFreeCell(this.grid.getGrid(), [
-      GroundArea.SKATE_GROUND,
-    ]);
+    const cell = getRandomFreeCell(this.grid.getGrid(), [GroundArea.SKATE_GROUND]);
     if (cell === null) return;
+
     skater.pos = cellToPos(cell, this.tileSize);
     skater.init();
     this.skaters.push(skater);
@@ -878,7 +946,13 @@ export default class Play extends Scene {
     this.loadSkaterSprite(
       "jazz",
       jazzSkaterJSON as AsepriteJSON,
-      jasmineBaseJSON as AsepriteJSON,
+      jazzBaseJSON as AsepriteJSON,
+    );
+
+    this.loadSkaterSprite(
+      "squid",
+      squidSkaterJSON as AsepriteJSON,
+      squidBaseJSON as AsepriteJSON,
     );
 
     this.loadSprite("door-cafe", doorCafeJSON as AsepriteJSON);

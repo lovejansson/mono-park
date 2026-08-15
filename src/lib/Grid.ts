@@ -1,6 +1,7 @@
 import { createGrid, getRandomFreeCell } from "../grid";
 import type Scene from "./Scene";
 import type { Cell, Vec2 } from "./types";
+import {  posToCell } from "./utils";
 
 type OccupiedTileState = Map<string, { ground: GroundArea; sprite: number }>;
 type TempBlockedTileState = Map<string, GroundArea>;
@@ -139,6 +140,9 @@ export default class Grid {
   }
 
   occupyTile(id: number, pos: Vec2): boolean {
+  
+
+
     const { row, col } = this.getGridCellFromPos(pos);
     const key = this.getTileKey({ row, col });
 
@@ -157,7 +161,9 @@ export default class Grid {
   }
 
   unoccupyTile(pos: Vec2, cooldown?: number): void {
+    
     const { row, col } = this.getGridCellFromPos(pos);
+   
     const key = this.getTileKey({ row, col });
     const state = this.occupiedTileState.get(key);
 

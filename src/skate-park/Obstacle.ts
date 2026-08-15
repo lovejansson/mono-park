@@ -1,4 +1,4 @@
-import { Scene, StaticImage } from "../lib"
+import { randomEl, Scene, StaticImage } from "../lib";
 import type { Direction, Vec2 } from "../lib/types";
 import { cellToPos, manhattan, posToCell } from "../lib";
 
@@ -9,13 +9,13 @@ export const obstacles: ObstacleType[] = ["rail", "bowl", "flat"];
 export const tricks: Trick[] = [
   "ollie",
   "pop-shove-it",
+  "360-shove-it",
   "kickflip",
   "50-50-grind",
   "5-0-grind",
   "nose-grind",
   "grab",
   "180",
-  "360-shove-it",
   "360",
 ];
 
@@ -70,7 +70,6 @@ export default class Obstacle extends StaticImage {
     this.numSkatersLimit = numSkatersLimit;
     this.tileSize = this.scene.art!.tileSize;
   }
-
 
   getArrivePos(_: Vec2): Vec2 {
     return { x: this.pos.x - this.tileSize, y: this.pos.y - this.tileSize };
@@ -407,10 +406,8 @@ export class Flat extends Obstacle {
   }
 
   getArrivePos(_: Vec2): Vec2 {
-    // const cell = getRandomFreeCell((this.scene as Play).parkGrid);
+    const flatPositions = [{x: 26 * this.scene.art.tileSize, y: 5 * this.scene.art.tileSize}, {x: 36 * this.scene.art.tileSize, y: 8 * this.scene.art.tileSize}, {x: 25 * this.scene.art.tileSize, y: 10 * this.scene.art.tileSize}]
 
-    // if (cell === null) throw new Error("No free cell found!");
-
-    return { x: this.pos.x, y: this.pos.y };
+    return randomEl(flatPositions)!;
   }
 }
