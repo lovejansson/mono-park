@@ -1,5 +1,5 @@
-import { type StrollSpot } from "./Play";
 import type Play from "./Play";
+import type { StrollSpot } from "./stroller/StrollPark";
 
 type WalkStateInactive = {
   isWalking: false;
@@ -14,17 +14,23 @@ type WalkState = WalkStateActive | WalkStateInactive;
 
 export default class Group {
   private scene: Play;
+  private name: string;
   private walk: WalkState;
   private strollSpots: StrollSpot[];
   private currStrollSpotIdx: number;
-  private isOccupyingStrollSpot: boolean;
 
-  constructor(scene: Play, strollSpots: StrollSpot[]) {
+  constructor(scene: Play, name: string, strollSpots: StrollSpot[]) {
     this.scene = scene;
+    this.name = name;
     this.walk = { isWalking: false };
     this.strollSpots = strollSpots;
     this.currStrollSpotIdx = 0;
-    this.isOccupyingStrollSpot = false;
+   
+  }
+
+  init() {
+    if(this.strollSpots.length === 0) return;
+     this.scene.strollPark.occupyStrollSpot(this.getStrollSpot(), this.name);
   }
 
   getStrollSpot(): StrollSpot {
@@ -37,10 +43,14 @@ export default class Group {
         (this.currStrollSpotIdx + offset) % this.strollSpots.length;
       const nextSpot = this.strollSpots[nextSpotIdx];
 
-      if (!this.scene.isStrollSpotOccupied(nextSpot)) {
-        this.unoccupyCurrentStrollSpot();
+      if (!this.scene.strollPark.isStrollSpotOccupied(nextSpot)) {
+        console.log("NEXT", nextSpotIdx)
+        this.scene.strollPark.unoccupyStrollSpot(
+          this.getStrollSpot(),
+          this.name,
+        );
         this.currStrollSpotIdx = nextSpotIdx;
-        this.occupyCurrentStrollSpot();
+        this.scene.strollPark.occupyStrollSpot(this.getStrollSpot(), this.name);
         return true;
       }
     }
@@ -48,24 +58,25 @@ export default class Group {
     return false;
   }
 
-  startWalk(leader: number): boolean {
-    if (
-      !this.occupyCurrentStrollSpot() &&
-      !this.selectNextAvailableStrollSpot()
-    ) {
-      return false;
-    }
+  startWalk(leader: number): void {
+    if (this.scene.strollPark.isParkBlocked())
+      throw new Error(
+        `Park is already blocked by: ${this.scene.strollPark.getBlockingPark()}`,
+      );
 
-    this.scene.groupIsStrolling = true;
+    const hasOccupiedNextStrollSpot = this.selectNextAvailableStrollSpot();
+    if (!hasOccupiedNextStrollSpot) throw new Error(`No available strollpot`);
+
+    this.scene.strollPark.blockPark(this.name);
+
     this.walk = {
       isWalking: true,
       leader,
     };
-    return true;
   }
 
   stopWalk(): void {
-    this.scene.groupIsStrolling = false;
+    this.scene.strollPark.unblockPark(this.name);
     this.walk = { isWalking: false };
   }
 
@@ -73,33 +84,8 @@ export default class Group {
     return this.walk.isWalking;
   }
 
-  getWalkState(): WalkState {
-    return this.walk;
-  }
-
   getLeader(): number {
     if (!this.walk.isWalking) throw new Error("No walk is active");
     return this.walk.leader;
-  }
-
-  getActiveWalkState(): WalkStateActive | null {
-    return this.walk.isWalking ? this.walk : null;
-  }
-
-  private occupyCurrentStrollSpot(): boolean {
-    if (this.isOccupyingStrollSpot) return true;
-
-    this.isOccupyingStrollSpot = this.scene.occupyStrollSpot(
-      this.getStrollSpot(),
-    );
-
-    return this.isOccupyingStrollSpot;
-  }
-
-  private unoccupyCurrentStrollSpot(): void {
-    if (!this.isOccupyingStrollSpot) return;
-
-    this.scene.unoccupyStrollSpot(this.getStrollSpot());
-    this.isOccupyingStrollSpot = false;
   }
 }

@@ -1,0 +1,21 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  fill="currentColor"
+  viewBox="0 0 24 24"
+>
+  <path d="
+    M8 2h2v2H8V2Z
+    M10 4h2v2h-2V4Z
+    M12 6h2v2h-2V6Z
+    M14 8h2v2h-2V8Z
+    M16 10h2v2h-2v-2Z
+
+    M8 20h2v2H8v-2Z
+    M10 18h2v2h-2v-2Z
+    M12 16h2v2h-2v-2Z
+    M14 14h2v2h-2v-2Z
+    M16 12h2v2h-2v-2Z
+
+    M6 2h2v20H6V2Z
+  " />
+</svg>

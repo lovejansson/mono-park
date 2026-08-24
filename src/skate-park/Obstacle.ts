@@ -1,12 +1,13 @@
-import { randomEl, Scene, StaticImage } from "../lib";
-import type { Direction, Vec2 } from "../lib/types";
+import { Scene, StaticImage } from "../lib";
+import type { Cell, Direction, Vec2 } from "../lib/types";
 import { cellToPos, manhattan, posToCell } from "../lib";
+import type Grid from "../lib/Grid";
 
-export type ObstacleType = "rail" | "bowl" | "flat";
+export const obstacles = ["rail", "bowl", "flat"] as const;
 
-export const obstacles: ObstacleType[] = ["rail", "bowl", "flat"];
+export type ObstacleType = (typeof obstacles)[number];
 
-export const tricks: Trick[] = [
+export const tricks = [
   "ollie",
   "pop-shove-it",
   "360-shove-it",
@@ -17,19 +18,9 @@ export const tricks: Trick[] = [
   "grab",
   "180",
   "360",
-];
+] as const;
 
-export type Trick =
-  | "ollie"
-  | "pop-shove-it"
-  | "kickflip"
-  | "50-50-grind"
-  | "5-0-grind"
-  | "nose-grind"
-  | "grab"
-  | "180"
-  | "360-shove-it"
-  | "360";
+export type Trick = (typeof tricks)[number];
 
 export const obstacleTricks: { [k in ObstacleType]: Trick[] } = {
   rail: ["50-50-grind", "5-0-grind", "nose-grind"],
@@ -71,7 +62,11 @@ export default class Obstacle extends StaticImage {
     this.tileSize = this.scene.art!.tileSize;
   }
 
-  getArrivePos(_: Vec2): Vec2 {
+  getNumSkaters(): number {
+    return this.skaters.length;
+  }
+
+  getArrivePos(_: Vec2, __: Grid): Vec2 {
     return { x: this.pos.x - this.tileSize, y: this.pos.y - this.tileSize };
   }
 
@@ -84,16 +79,18 @@ export default class Obstacle extends StaticImage {
   }
 
   isStandingInLine(id: number) {
-    return this.queue.find((i) => i === id) !== undefined;
+    return this.queue.includes(id);
   }
 
   /**
    * Call this when skater should occupy the obsticle, it will remove the skater from the queue and set the obsticle to not free.
    */
   skate(id: number) {
-    if (!this.isMyTurn(id)) throw new Error("Wait for your turn mr");
+    if (this.queue[0] !== id) throw new Error("Wait for your turn mr");
 
     this.currSkater = this.queue.shift()!;
+
+    if (id !== this.currSkater) throw new Error("WHY????");
 
     this.isFree = false;
   }
@@ -104,7 +101,7 @@ export default class Obstacle extends StaticImage {
    */
   endSkate(id: number) {
     if (this.currSkater !== id)
-      throw new Error("Skater is not skating the obstacle.");
+      throw new Error("Skater is not skating the obstacle: " + id);
 
     this.currSkater = null;
 
@@ -114,23 +111,29 @@ export default class Obstacle extends StaticImage {
   leave(id: number) {
     const skaterIdx = this.skaters.findIndex((s) => s === id);
 
-    if (skaterIdx === -1) throw new Error("Skater is not at obstacle.");
+    if (skaterIdx === -1) throw new Error("Skater is not at obstacle: " + id);
+
+    if (this.isStandingInLine(id)) {
+      const qi = this.queue.findIndex((i) => i === id);
+
+      if (qi !== -1) this.queue.splice(qi, 1);
+      else throw new Error("Skater was in line but couldn't find index");
+    }
 
     this.skaters.splice(skaterIdx, 1);
-
-    const qi = this.queue.findIndex((i) => i === id);
-
-    if (qi !== -1) this.queue.splice(qi, 1);
   }
 
   /**
    * When skater has arrived they can stand in line to go skate the obsticle.
    */
   standInLine(id: number): void {
+    if (this.currSkater === id)
+      throw new Error("End skate before standing in line again: " + id);
     this.assertSkaterIsAtObstacle(id);
 
-    if (this.queue.find((i) => i === id))
-      throw new Error("Skater is already in line");
+    if (this.isStandingInLine(id)) {
+      throw new Error("Skater is already in line: " + id);
+    }
 
     this.queue.push(id);
   }
@@ -158,6 +161,7 @@ export default class Obstacle extends StaticImage {
 
 export class Rail extends Obstacle {
   private startPositions: { pos: Vec2; railSide: RailSide }[];
+  private idlePositions: Vec2[];
 
   constructor(scene: Scene, pos: Vec2, width: number, height: number) {
     super(scene, "rail", pos, width, height, "rail", 4);
@@ -168,70 +172,94 @@ export class Rail extends Obstacle {
       },
       {
         pos: {
-          x: this.pos.x + this.width + 3 * scene.art!.tileSize,
+          x: this.pos.x + this.width + 2 * scene.art!.tileSize,
           y: this.pos.y,
         },
         railSide: RailSide.RIGHT,
       },
     ];
+
+    this.idlePositions = [
+      {
+        x: this.pos.x - 3 * scene.art.tileSize,
+        y: this.pos.y - scene.art.tileSize,
+      },
+      {
+        x: this.pos.x - 2 * scene.art.tileSize,
+        y: this.pos.y - scene.art.tileSize,
+      },
+
+      {
+        x: this.pos.x - scene.art.tileSize,
+        y: this.pos.y - scene.art.tileSize,
+      },
+      {
+        x: this.pos.x + this.width + scene.art.tileSize,
+        y: this.pos.y - scene.art.tileSize,
+      },
+
+      {
+        x: this.pos.x + this.width + 2 * scene.art.tileSize,
+        y: this.pos.y - scene.art.tileSize,
+      },
+
+      {
+        x: this.pos.x + this.width + 3 * scene.art.tileSize,
+        y: this.pos.y - scene.art.tileSize,
+      },
+      {
+        x: this.pos.x + this.width + 2 * scene.art.tileSize,
+        y: this.pos.y + scene.art.tileSize,
+      },
+    ];
   }
 
-  getArrivePos(from: Vec2): Vec2 {
+  getArrivePos(from: Vec2, grid: Grid): Vec2 {
+    const fromCell = posToCell(from, this.tileSize);
+
     let min = Infinity;
 
-    let pos: Vec2 = {
-      x: this.pos.x - this.tileSize,
-      y: this.pos.y - this.tileSize,
-    };
+    let arrivePos: Vec2 | null = null;
+    let dist = 0;
 
-    let startCell = posToCell(this.pos, this.tileSize);
+    let cell: Cell = { row: 0, col: 0 };
 
-    for (
-      let c = startCell.col - 3;
-      c < 3 + this.width / this.tileSize + 3;
-      ++c
-    ) {
-      const dist1 = manhattan(posToCell(from, this.tileSize), {
-        col: c,
-        row: startCell.row - 1,
-      });
+    for (const p of this.idlePositions) {
+      cell = posToCell(p, this.tileSize);
+      dist = manhattan(fromCell, cell);
 
-      if (dist1 < min) {
-        min = dist1;
-        pos = cellToPos({ col: c, row: startCell.row - 1 }, this.tileSize);
-      }
-
-      const dist2 = manhattan(posToCell(from, this.tileSize), {
-        col: c,
-        row: startCell.row + 1,
-      });
-
-      if (dist2 < min) {
-        min = dist2;
-        pos = cellToPos({ col: c, row: startCell.row + 1 }, this.tileSize);
+      if (dist < min && !grid.isTileOccupied(cell)) {
+        min = dist;
+        arrivePos = cellToPos(cell, this.tileSize);
       }
     }
 
-    return pos;
+    if (arrivePos === null) {
+      // Can technically happen but shouldn't happen since grid is not that full
+      throw new Error("No arrive position is free for the rail!");
+    }
+
+    return arrivePos;
   }
 
   getClosestTrickStartPos(from: Vec2): { pos: Vec2; railSide: RailSide } {
-    let min = Infinity;
-    let pos: { pos: Vec2; railSide: RailSide } = this.startPositions[0];
+    // Returns either the right or left side of the rail
 
-    for (const p of this.startPositions) {
-      const dist = manhattan(
-        posToCell(from, this.tileSize),
-        posToCell(p.pos, this.tileSize),
-      );
+    const fromCell = posToCell(from, this.tileSize);
 
-      if (dist < min) {
-        min = dist;
-        pos = p;
-      }
-    }
+    const distLeft = manhattan(
+      fromCell,
+      posToCell(this.startPositions[0].pos, this.tileSize),
+    );
 
-    return pos;
+    const distRight = manhattan(
+      fromCell,
+      posToCell(this.startPositions[1].pos, this.tileSize),
+    );
+
+    return distLeft < distRight
+      ? this.startPositions[0]
+      : this.startPositions[1];
   }
 }
 
@@ -242,6 +270,7 @@ export enum RailSide {
 
 export class Bowl extends Obstacle {
   private startPositions: { pos: Vec2; bowlSide: BowlSide }[];
+  private idlePositions: Vec2[];
 
   constructor(scene: Scene, pos: Vec2, width: number, height: number) {
     super(scene, "bowl", pos, width, height, "bowl", 4);
@@ -249,14 +278,14 @@ export class Bowl extends Obstacle {
     this.startPositions = [
       {
         pos: {
-          x: this.pos.x + Math.floor(this.halfWidth) - this.tileSize,
+          x: this.pos.x + this.halfWidth - this.tileSize,
           y: this.pos.y - this.tileSize,
         },
         bowlSide: BowlSide.TOP,
       },
       {
         pos: {
-          x: this.pos.x + Math.ceil(this.halfWidth),
+          x: this.pos.x + this.halfWidth,
           y: this.pos.y + this.height,
         },
         bowlSide: BowlSide.BOTTOM,
@@ -264,99 +293,88 @@ export class Bowl extends Obstacle {
       {
         pos: {
           x: this.pos.x - this.tileSize,
-          y: this.pos.y + Math.floor(this.halfHeight) - this.tileSize,
+          y: this.pos.y + this.halfHeight - this.tileSize,
         },
         bowlSide: BowlSide.LEFT,
       },
       {
         pos: {
           x: this.pos.x + this.width,
-          y: this.pos.y + Math.ceil(this.halfHeight) - this.tileSize,
+          y: this.pos.y + this.halfHeight - this.tileSize,
         },
         bowlSide: BowlSide.RIGHT,
       },
     ];
+    this.idlePositions = [
+      {
+        x: this.pos.x,
+        y: this.pos.y - this.tileSize,
+      },
+
+      {
+        x: this.pos.x + this.tileSize * 5,
+        y: this.pos.y - this.tileSize,
+      },
+      // RIGHT
+      {
+        x: this.pos.x + this.width,
+        y: this.pos.y + this.tileSize,
+      },
+      {
+        x: this.pos.x + this.width,
+        y: this.pos.y + this.height - this.tileSize,
+      },
+      // BOTTOM
+      {
+        x: this.pos.x,
+        y: this.pos.y + this.height,
+      },
+      {
+        x: this.pos.x + this.tileSize * 5,
+        y: this.pos.y + this.height,
+      },
+
+      // LEFT SIDE
+      {
+        x: this.pos.x - this.tileSize,
+        y: this.pos.y + this.tileSize,
+      },
+      {
+        x: this.pos.x - this.tileSize,
+        y: this.pos.y + this.height - this.tileSize,
+      },
+    ];
   }
 
-  getArrivePos(from: Vec2): Vec2 {
-    let min = Infinity;
-
-    let pos: Vec2 = {
-      x: this.pos.x - this.tileSize,
-      y: this.pos.y - this.tileSize,
-    };
-
-    let startCell = posToCell(this.pos, this.tileSize);
-
+  getArrivePos(from: Vec2, grid: Grid): Vec2 {
+    
     // Search around the bowl for a position that has the min distance to 'from'
 
-    // Top and bottom
+    const fromCell = posToCell(from, this.tileSize);
 
-    for (
-      let c = startCell.col;
-      c < startCell.col + this.width / this.tileSize;
-      ++c
-    ) {
-      const dist1 = manhattan(posToCell(from, this.tileSize), {
-        col: c,
-        row: startCell.row - 2,
-      });
+    let min = Infinity;
 
-      if (dist1 < min) {
-        min = dist1;
-        pos = cellToPos({ col: c, row: startCell.row - 2 }, this.tileSize);
-      }
+    let arrivePos: Vec2 | null = null;
+    let dist = 0;
 
-      const dist2 = manhattan(posToCell(from, this.tileSize), {
-        col: c,
-        row: startCell.row + this.height / this.tileSize + 1,
-      });
+    let cell: Cell = { row: 0, col: 0 };
 
-      if (dist2 < min) {
-        min = dist2;
-        pos = cellToPos(
-          { col: c, row: startCell.row + this.height / this.tileSize + 1 },
-          this.tileSize,
-        );
+    for (const p of this.idlePositions) {
+      cell = posToCell(p, this.tileSize);
+      dist = manhattan(fromCell, cell);
+
+      if (dist < min && !grid.isTileOccupied(cell)) {
+        min = dist;
+        arrivePos = cellToPos(cell, this.tileSize);
       }
     }
 
-    for (
-      let r = startCell.row;
-      r < startCell.row + this.height / this.tileSize;
-      ++r
-    ) {
-      const dist1 = manhattan(posToCell(from, this.tileSize), {
-        col: startCell.col - 1,
-        row: r,
-      });
-
-      if (dist1 < min) {
-        min = dist1;
-        pos = cellToPos(
-          {
-            col: startCell.col - 1,
-            row: r,
-          },
-          this.tileSize,
-        );
-      }
-
-      const dist2 = manhattan(posToCell(from, this.tileSize), {
-        col: startCell.col + this.width / this.tileSize + 1,
-        row: r,
-      });
-
-      if (dist2 < min) {
-        min = dist2;
-        pos = cellToPos(
-          { col: startCell.col + this.width / this.tileSize + 1, row: r },
-          this.tileSize,
-        );
-      }
+    if (arrivePos === null) {
+      // Can technically happen but shouldn't happen since grid is not that full
+      throw new Error("No arrive position is free for the bowl!");
     }
 
-    return pos;
+    return arrivePos;
   }
 
   getClosestTrickStartPos(from: Vec2): { pos: Vec2; bowlSide: BowlSide } {
@@ -401,13 +419,27 @@ export const bowlSideToEndDir: Map<BowlSide, Direction> = new Map([
 ]);
 
 export class Flat extends Obstacle {
+  private positions: Vec2[];
   constructor(scene: Scene, pos: Vec2, width: number, height: number) {
-    super(scene, "flat", pos, width, height, "flat", 4);
+    super(scene, "flat", pos, width, height, "flat", 2);
+    this.positions = [
+      { x: 26 * this.scene.art.tileSize, y: 5 * this.scene.art.tileSize },
+      { x: 36 * this.scene.art.tileSize, y: 8 * this.scene.art.tileSize },
+      { x: 26 * this.scene.art.tileSize, y: 11 * this.scene.art.tileSize },
+    ];
   }
 
-  getArrivePos(_: Vec2): Vec2 {
-    const flatPositions = [{x: 26 * this.scene.art.tileSize, y: 5 * this.scene.art.tileSize}, {x: 36 * this.scene.art.tileSize, y: 8 * this.scene.art.tileSize}, {x: 25 * this.scene.art.tileSize, y: 10 * this.scene.art.tileSize}]
+  getArrivePos(_: Vec2, grid: Grid): Vec2 {
+    const arrivePos =
+      this.positions.find(
+        (p) => !grid.isTileOccupied(posToCell(p, this.scene.art.tileSize)),
+      ) ?? null;
 
-    return randomEl(flatPositions)!;
+    if (arrivePos === null) {
+      // Can technically happen but shouldn't happen since grid is not that full
+      throw new Error("No arrive position is free for the flat obstacle!");
+    }
+
+    return arrivePos;
   }
 }

@@ -4,7 +4,6 @@ import {
   type ActionTag,
   type Updatable,
 } from "./actions";
-import { GoTo } from "./commonActions";
 import type Group from "./Group";
 
 import { Sprite } from "./lib";
@@ -45,6 +44,8 @@ export default class Human extends Sprite {
     this.animations.play("idle-stand-" + this.direction);
 
     this.animations.onFrameChange = (anim: string) => {
+      if (!(this.isOnActiveAnimationSequence() || this.isOnActivePath()))
+        return;
       const updateType = AnimationPositionUpdates[anim];
 
       switch (updateType) {

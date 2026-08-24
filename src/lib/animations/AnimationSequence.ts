@@ -17,7 +17,7 @@ type TransitionCondition<T extends TransitionType> =
 export type SequenceAnimationT<T extends TransitionType> = {
   type: T;
   anim: string;
-  options?: AnimationOptions,
+  options?: AnimationOptions;
   transition: TransitionCondition<T>;
 };
 
@@ -67,7 +67,6 @@ export default class AnimationSequence {
     type: T;
     transition: TransitionCondition<T>;
   }): SequenceAnimationT<T> {
-
     return {
       type: config.type,
       anim: config.anim,
@@ -81,7 +80,25 @@ export default class AnimationSequence {
   }
 
   start(): void {
+    if (this.hasStarted())
+      throw new Error(
+        "Animation sequence is already started. Call finish() to end it.",
+      );
+  
+    this.sprite.currentAnimationSequence = this;
+    this.isFinished = false;
+    this.currIdx = 0;
     this.initPlayingAnimation();
+  }
+
+  finish(): void {
+    if (!this.hasStarted())
+      throw new Error("The animation sequence is not started");
+    if (!this.isFinished)
+      throw new Error("The animation sequence is not finished");
+
+    this.sprite.currentAnimationSequence = null;
+    this.playingAnim = null;
   }
 
   getCurrentAnimation(): { name: string; index: number } {
@@ -89,12 +106,11 @@ export default class AnimationSequence {
   }
 
   update(dt: number): void {
-    if (this.isFinished) return;
-
     if (this.playingAnim === null)
       throw new Error("Animation sequence has not been initialized.");
+    if (this.isFinished) return;
 
-    const playingAnim = this.playingAnim!;
+    const playingAnim = this.playingAnim;
 
     switch (playingAnim.type) {
       case TransitionType.Distance: {

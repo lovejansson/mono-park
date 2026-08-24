@@ -18,16 +18,12 @@ type MoveIntent = {
 export default class PathCollisionManager {
   private intents: Map<number, MoveIntent>;
   private scene: Scene;
-  private walkableTiles: GroundArea[];
+ 
 
   constructor(scene: Scene) {
     this.scene = scene;
-    this.walkableTiles = [GroundArea.GRASS, GroundArea.GRAVEL];
+   
     this.intents = new Map();
-  }
-
-  setWalkableTiles(groundAreas: GroundArea[]): void {
-    this.walkableTiles = groundAreas;
   }
 
   pushIntent(id: number, currentTile: Cell, nextTile: Cell) {
@@ -38,8 +34,19 @@ export default class PathCollisionManager {
     const currPathState = this.getPathState(id);
 
     this.scene.grid.unoccupyTile(
+      id,
       cellToPos(currPathState.currentTile, this.scene.art.tileSize),
     );
+
+    if (
+      this.scene.grid.isTileOccupied(currPathState.nextTile) &&
+      this.scene.grid.getSpriteAtOccupiedTile(currPathState.nextTile) === id
+    ) {
+      // Sprite occupied some cell prehand and is therefore allowed to walk on their own tile
+
+      this.deletePathState(id);
+      return;
+    }
 
     this.scene.grid.occupyTile(
       id,
@@ -56,9 +63,7 @@ export default class PathCollisionManager {
     const currPathState = this.getPathState(id);
 
     if (currPathState.result === null)
-      throw new Error(
-        "Resolve phase has not been executed yet, no resolution result exists",
-      );
+      throw new Error("No resolution result found for " + id);
 
     return { tile: currPathState.nextTile, result: currPathState.result };
   }
@@ -155,6 +160,14 @@ export default class PathCollisionManager {
 
   hasMoveIntent(id: number): boolean {
     return this.intents.has(id);
+  }
+
+  hasResolutionresult(id: number): boolean {
+    if (!this.hasMoveIntent(id)) return false;
+
+    const currPathState = this.getPathState(id);
+
+    return currPathState.result !== null;
   }
 
   cancelMoveIntent(id: number): void {

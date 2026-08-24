@@ -4,7 +4,7 @@ import Human, { PositionUpdateType, type AnimationSetting } from "../Human.ts";
 import type { OverlayOptions } from "../lib";
 import type { Direction, Vec2 } from "../lib/types";
 import type Play from "../Play.ts";
-import SkatingAtPark from "./SkatePark.ts";
+import Skate from "./Skate.ts";
 
 type Skill = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
@@ -15,7 +15,6 @@ export default class Skater extends Human {
   static WALK_SPEED = 1;
 
   skill: Skill;
-  skatingAtPark: SkatingAtPark;
   obstacle: number | null;
   bench: number | null;
   initAction: ActionTag;
@@ -31,18 +30,23 @@ export default class Skater extends Human {
     super(scene, pos, name, group);
 
     this.skill = skill;
-    this.skatingAtPark = new SkatingAtPark(this);
     this.obstacle = null;
     this.bench = null;
     this.initAction = initAction;
   }
 
   init(): void {
+    super.init();
+
     this.animations.registerSpritesheet(`${this.name}-skater`, {
       defaults: REPEAT_DEFAULTS,
     });
 
     this.animations.registerSpritesheet(`${this.name}-base`, {
+      defaults: REPEAT_DEFAULTS,
+    });
+
+    this.animations.registerSpritesheet("drinks", {
       defaults: REPEAT_DEFAULTS,
     });
 
@@ -52,6 +56,11 @@ export default class Skater extends Human {
       totalFrames: number,
       loopCount: number,
     ) => {
+      if (!(this.isOnActiveAnimationSequence() || this.isOnActivePath())) {
+        return;
+      }
+   
+
       const updateType = AnimationPositionUpdates[anim];
 
       switch (updateType) {
@@ -125,11 +134,6 @@ export default class Skater extends Human {
               break;
           }
 
-          if (this.currentPath?.isWaiting || this.currentPath?.hasReachedGoal) {
-            this.vel.x = 0;
-            this.vel.y = 0;
-          }
-
           this.pos.x += this.vel.x;
           this.pos.y += this.vel.y;
 
@@ -144,16 +148,20 @@ export default class Skater extends Human {
     this.animations.onComplete = (animation: string) => {
       // console.log("COMPLETE", animation);
     };
+
+    this.transitionToAction(Skate.TAG, this);
   }
 
   update(dt: number): void {
-    this.skatingAtPark.update(dt);
+    //   if(this.name === "love") {
+    //       console.log((this.scene as Play).isSkateGroundBlocked())
+    //     console.log("IS MY TURN?", this.action);
+    // }
+    this.currentAction.update(dt);
   }
 }
 
-export function getBoardFlipOverlay(
-  direction: Direction,
-): OverlayOptions | undefined {
+export function getBoardFlipOverlay(direction: Direction): OverlayOptions {
   switch (direction) {
     case "n":
       return {
@@ -187,13 +195,15 @@ export function getBoardFlipOverlay(
         dy: 3,
         dx: -8,
       };
+    default:
+      throw new Error("Invalid direction for skater");
   }
 }
 
 export function getBoardCarryOverlay(
   direction: Direction,
   isIdle: boolean = false,
-): OverlayOptions | undefined {
+): OverlayOptions {
   switch (direction) {
     case "n":
       return {
@@ -203,8 +213,7 @@ export function getBoardCarryOverlay(
         dy: 5,
         dx: 1,
       };
-    case "ne":
-      break;
+
     case "e":
       return {
         name: `board-carry-${isIdle ? "idle-" : ""}c`,
@@ -213,16 +222,16 @@ export function getBoardCarryOverlay(
         dy: -1,
         dx: 0,
       };
-    case "se":
+
     case "s":
       return {
         name: `board-carry-${isIdle ? "idle-" : ""}l`,
-        drawOnTop: false,
-        drawBehind: true,
+        drawOnTop: true,
+        drawBehind: false,
         dy: 5,
         dx: -1,
       };
-    case "sw":
+
     case "w":
       return {
         name: `board-carry-${isIdle ? "idle-" : ""}c`,
@@ -231,7 +240,8 @@ export function getBoardCarryOverlay(
         dy: -2,
         dx: 0,
       };
-    case "nw":
+    default:
+      throw new Error("Invalid direction for skater");
   }
 }
 
@@ -337,6 +347,10 @@ const AnimationSettings: Record<string, AnimationSetting> = {
     repeat: true,
   },
   "idle-sit-s": {
+    positionUpdateType: PositionUpdateType.VEL,
+    repeat: true,
+  },
+  "idle-sit-drink-s": {
     positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
   },

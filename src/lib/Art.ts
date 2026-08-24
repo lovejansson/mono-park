@@ -9,7 +9,7 @@ export type ArtConfig = {
   height: number;
   tileSize: number;
   play: Scene;
-  pause: Scene;
+  pause?: Scene;
   container?: string;
   displayGrid: boolean;
   gridColor?: string;
@@ -43,7 +43,7 @@ export default class Art {
   isPlaying: boolean;
 
   private config: ArtConfig;
-   startTime: Date | null;
+  startTime: Date | null;
   private currId: number;
   private renderer!: Renderer;
 
@@ -77,17 +77,6 @@ export default class Art {
     this.currId = -1;
   }
 
-  enterFullScreen(): void {
-    const body = document.querySelector("body");
-    if (!body) throw new Error("body not found");
-
-    if (!document.fullscreenElement) {
-      body.requestFullscreen();
-    } else {
-      document.exitFullscreen();
-    }
-  }
-
   getId(): number {
     this.currId++;
     return this.currId;
@@ -97,10 +86,12 @@ export default class Art {
     this.startTime = new Date();
 
     this.config.play.art = this;
-    this.config.pause.art = this;
-
     await this.config.play.init();
-    await this.config.pause.init();
+
+    if (this.config.pause !== undefined) {
+      this.config.pause.art = this;
+      await this.config.pause?.init();
+    }
 
     await this.renderer.init(
       this.config.container ?? CONTAINER_SELECTOR_DEFAULT,
@@ -123,32 +114,50 @@ export default class Art {
       if (["arrowleft", "a"].includes(key)) this.keys.left = false;
       if (key === " ") this.keys.space = false;
     });
+
     try {
       this.renderer.run();
-
-      console.log(new Date());
     } catch (e) {
       if (this.startTime) {
         const { hours, minutes, seconds } = diffHMS(new Date(), this.startTime);
-         this.audio.beep();
+        this.audio.beep();
         console.log(`Time since start ${hours}:${minutes}:${seconds}`);
       }
+
+      if (this.audio.onoff) {
+        this.audio.onOffSwitch();
+      }
       console.error(e);
+    }
+
+    if (this.config.pause) {
+      this.config.pause.start();
+    } else {
+      this.config.play.start();
     }
   }
 
   async play(): Promise<void> {
-    this.audio.onOffSwitch();
-    this.config.play.start();
-    this.config.pause.stop();
+    if (!this.audio.onoff) this.audio.onOffSwitch();
+
     this.isPlaying = true;
+    this.config.play.start();
+
+    // If we have a special pause screen, stop the pause screen
+    if (this.config.pause) {
+      this.config.pause.stop();
+    }
   }
 
   async pause(): Promise<void> {
-    this.audio.onOffSwitch();
-    this.config.pause.start();
-    this.config.play.stop();
+    if (this.audio.onoff) this.audio.onOffSwitch();
+
     this.isPlaying = false;
+    this.config.play.stop();
+    // If we have a special pause screen, start it
+    if (this.config.pause) {
+      this.config.pause.start();
+    }
   }
 }
 

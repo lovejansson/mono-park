@@ -4,11 +4,7 @@ import type Scene from "../Scene.js";
 import type Path from "../Path.ts";
 import type { Vec2, Direction } from "../types.ts";
 import { posToCell } from "../utils.ts";
-
-type PathState = {
-  isOnPath: boolean;
-  hasReachedGoal: boolean;
-};
+import type AnimationSequence from "../animations/AnimationSequence.ts";
 
 export default abstract class Sprite extends ArtObject {
   vel: Vec2;
@@ -20,8 +16,8 @@ export default abstract class Sprite extends ArtObject {
   animations: AnimationManager;
   drawOffset: Vec2;
 
-  path: PathState;
   currentPath: Path | null;
+  currentAnimationSequence: AnimationSequence | null;
 
   constructor(
     scene: Scene,
@@ -39,14 +35,27 @@ export default abstract class Sprite extends ArtObject {
     this.halfHeight = height / 2;
     this.animations = new AnimationManager(this);
     this.drawOffset = { x: 0, y: 0 };
-    this.path = {
-      isOnPath: false,
-      hasReachedGoal: false,
-    };
+
     this.currentPath = null;
+    this.currentAnimationSequence = null;
   }
 
   abstract update(dt: number): void;
+
+  isOnActivePath(): boolean {
+    return (
+      this.currentPath !== null &&
+      !this.currentPath.isWaiting &&
+      !this.currentPath.hasReachedGoal
+    );
+  }
+
+  isOnActiveAnimationSequence(): boolean {
+    return (
+      this.currentAnimationSequence !== null &&
+      !this.currentAnimationSequence.isFinished
+    );
+  }
 
   getGridCell() {
     return posToCell(this.pos, this.scene.art!.tileSize);

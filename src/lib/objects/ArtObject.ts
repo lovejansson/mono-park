@@ -2,6 +2,8 @@ import type Scene from "../Scene.ts";
 import type { Vec2 } from "../types.ts";
 
 export default abstract class ArtObject {
+
+
   id: number;
   scene: Scene;
   pos: Vec2;

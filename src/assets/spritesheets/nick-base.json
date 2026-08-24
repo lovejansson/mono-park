@@ -289,7 +289,7 @@
    },
    {
     "filename": "nick",
-    "frame": { "x": 48, "y": 96, "w": 16, "h": 32 },
+    "frame": { "x": 48, "y": 64, "w": 16, "h": 32 },
     "rotated": false,
     "trimmed": false,
     "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },
@@ -316,7 +316,7 @@
    },
    {
     "filename": "nick",
-    "frame": { "x": 64, "y": 96, "w": 16, "h": 32 },
+    "frame": { "x": 48, "y": 96, "w": 16, "h": 32 },
     "rotated": false,
     "trimmed": false,
     "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },
@@ -326,6 +326,24 @@
    {
     "filename": "nick",
     "frame": { "x": 32, "y": 0, "w": 16, "h": 32 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },
+    "sourceSize": { "w": 16, "h": 32 },
+    "duration": 125
+   },
+   {
+    "filename": "nick",
+    "frame": { "x": 64, "y": 96, "w": 16, "h": 32 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },
+    "sourceSize": { "w": 16, "h": 32 },
+    "duration": 125
+   },
+   {
+    "filename": "nick",
+    "frame": { "x": 0, "y": 0, "w": 16, "h": 32 },
     "rotated": false,
     "trimmed": false,
     "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },
@@ -361,7 +379,7 @@
    },
    {
     "filename": "nick",
-    "frame": { "x": 0, "y": 0, "w": 16, "h": 32 },
+    "frame": { "x": 64, "y": 0, "w": 16, "h": 32 },
     "rotated": false,
     "trimmed": false,
     "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },
@@ -397,7 +415,7 @@
    },
    {
     "filename": "nick",
-    "frame": { "x": 64, "y": 0, "w": 16, "h": 32 },
+    "frame": { "x": 48, "y": 32, "w": 16, "h": 32 },
     "rotated": false,
     "trimmed": false,
     "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },
@@ -425,24 +443,6 @@
    {
     "filename": "nick",
     "frame": { "x": 64, "y": 128, "w": 16, "h": 32 },
-    "rotated": false,
-    "trimmed": false,
-    "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },
-    "sourceSize": { "w": 16, "h": 32 },
-    "duration": 125
-   },
-   {
-    "filename": "nick",
-    "frame": { "x": 48, "y": 32, "w": 16, "h": 32 },
-    "rotated": false,
-    "trimmed": false,
-    "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },
-    "sourceSize": { "w": 16, "h": 32 },
-    "duration": 125
-   },
-   {
-    "filename": "nick",
-    "frame": { "x": 80, "y": 128, "w": 16, "h": 32 },
     "rotated": false,
     "trimmed": false,
     "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },

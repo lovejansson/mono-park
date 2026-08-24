@@ -3,16 +3,16 @@ import type Play from "./Play";
 
 export default class Bench extends StaticImage {
   isFree: boolean;
-  isAtSkatePark: boolean;
+  isAtSkateGround: boolean;
   constructor(
     scene: Play,
     pos: Vec2,
     width: number,
     height: number,
-    isAtSkatePark: boolean,
+    isAtSkateGround: boolean,
   ) {
     super(scene, pos, width, height, "bench");
     this.isFree = true;
-    this.isAtSkatePark = isAtSkatePark;
+    this.isAtSkateGround = isAtSkateGround;
   }
 }

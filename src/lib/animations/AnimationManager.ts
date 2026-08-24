@@ -16,7 +16,7 @@ type Animation = {
 
 export type AnimationOptions = {
   repeat?: number | boolean; // true = loop forever, number = fixed repeat count, false = play once
-  overlay?: OverlayOptions;
+  overlays?: OverlayOptions[];
   reverse?: boolean;
 };
 export type OverlayOptions = {
@@ -43,8 +43,8 @@ type PlayingState = {
   elapsed: number;
   loopCount: number;
   repeat: number | boolean;
-  overlay?: OverlayState;
-  reverse?: boolean;
+  overlays: OverlayState[];
+  reverse: boolean;
 };
 
 type RegisterSpritesheetOptions = {
@@ -122,22 +122,24 @@ export default class AnimationManager {
 
     this.currentAnimation = name;
 
-    let overlay = undefined;
+    let overlays = [];
 
-    if (options?.overlay) {
-      const overlayAnim = this.animations.get(options.overlay.name);
+    if (options?.overlays) {
+      for (const o of options.overlays) {
+        const overlayAnim = this.animations.get(o.name);
 
-      if (overlayAnim === undefined)
-        throw new AnimationNotAddedError(options.overlay.name);
+        if (overlayAnim === undefined)
+          throw new AnimationNotAddedError(o.name);
 
-      overlay = {
-        name: options.overlay.name,
-        anim: overlayAnim,
-        dx: options.overlay.dx ?? 0,
-        dy: options.overlay.dy ?? 0,
-        drawBehind: options.overlay.drawBehind ?? false,
-        drawOnTop: options.overlay.drawOnTop ?? false,
-      };
+        overlays.push({
+          name: o.name,
+          anim: overlayAnim,
+          dx: o.dx ?? 0,
+          dy: o.dy ?? 0,
+          drawBehind: o.drawBehind ?? false,
+          drawOnTop: o.drawOnTop ?? false,
+        });
+      }
     }
 
     const firstFrameIdx = options?.reverse ? anim.frames.length - 1 : 0;
@@ -149,8 +151,8 @@ export default class AnimationManager {
       elapsed: 0,
       loopCount: 0,
       repeat,
-      reverse: options?.reverse,
-      overlay: overlay,
+      reverse: options?.reverse ?? false,
+      overlays: overlays,
     };
 
     if (this.onFrameChange) {
@@ -262,9 +264,11 @@ export default class AnimationManager {
       this.playing.anim.spritesheet,
     );
 
-    if (this.playing.overlay?.drawBehind) {
-      this.drawOverlay(ctx, this.playing.overlay, this.playing.frameIndex);
-    }
+    this.drawOverlay(
+      ctx,
+      this.playing.overlays.filter((o) => o.drawBehind),
+      this.playing.frameIndex,
+    );
 
     ctx.drawImage(
       image,
@@ -278,35 +282,40 @@ export default class AnimationManager {
       this.sprite.height,
     );
 
-    if (this.playing.overlay?.drawOnTop) {
-      this.drawOverlay(ctx, this.playing.overlay, this.playing.frameIndex);
-    }
+    this.drawOverlay(
+      ctx,
+      this.playing.overlays.filter((o) => o.drawOnTop),
+      this.playing.frameIndex,
+    );
   }
 
   private drawOverlay(
     ctx: CanvasRenderingContext2D,
-    overlay: OverlayState,
+    overlays: OverlayState[],
     mainFrameIndex: number,
   ): void {
     if (this.playing === null) return;
 
-    // Currently the overlay animations frames are allowed to not sync with the main animation bc sometimes there is just an overlay image which repeats... might have to provide separate update logic for overlays in the future.
-    const frameIdx = Math.min(mainFrameIndex, overlay.anim.frames.length - 1);
+    // Currently the overlay animations frames are allowed to not sync with the main animation bc sometimes there is just an overlay image which repeats...
+    // might have to provide separate update logic for overlays in the future.
 
-    const frame = overlay.anim.frames[frameIdx];
-    const image = this.sprite.scene.art!.images.get(overlay.anim.spritesheet);
+    for (const o of overlays) {
+      const frameIdx = Math.min(mainFrameIndex, o.anim.frames.length - 1);
+      const frame = o.anim.frames[frameIdx];
+      const image = this.sprite.scene.art!.images.get(o.anim.spritesheet);
 
-    ctx.drawImage(
-      image,
-      frame.x,
-      frame.y,
-      frame.w,
-      frame.h,
-      this.sprite.pos.x + this.sprite.drawOffset.x + overlay.dx,
-      this.sprite.pos.y + this.sprite.drawOffset.y + overlay.dy,
-      this.sprite.width,
-      this.sprite.height,
-    );
+      ctx.drawImage(
+        image,
+        frame.x,
+        frame.y,
+        frame.w,
+        frame.h,
+        this.sprite.pos.x + this.sprite.drawOffset.x + o.dx,
+        this.sprite.pos.y + this.sprite.drawOffset.y + o.dy,
+        this.sprite.width,
+        this.sprite.height,
+      );
+    }
   }
 
   getEstimatedDistanceForAnim(

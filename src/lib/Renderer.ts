@@ -16,7 +16,7 @@ export default class Renderer {
   private art: Art;
   private elapsedPrev: number;
   private playScene: Scene;
-  private pauseScene: Scene;
+  private pauseScene?: Scene;
 
   constructor(art: Art, config: ArtConfig) {
     this.ctx = null; // Is set in init();
@@ -24,6 +24,17 @@ export default class Renderer {
     this.playScene = config.play;
     this.pauseScene = config.pause;
     this.elapsedPrev = 0;
+  }
+
+  getImageData(): ImageData {
+    if (this.ctx === null) throw new RendererUnInitialized();
+
+    return this.ctx.getImageData(
+      0,
+      0,
+      this.ctx.canvas.width,
+      this.ctx.canvas.height,
+    );
   }
 
   async init(containerSelector: string): Promise<void> {
@@ -53,62 +64,99 @@ export default class Renderer {
   }
 
   run(elapsed: number = 0): void {
-    if (this.ctx === null) throw new RendererUnInitialized();
+    try {
+      if (this.ctx === null) throw new RendererUnInitialized();
 
-    const dt = elapsed - this.elapsedPrev;
-    const currentTransform = this.ctx.getTransform();
+      const dt = elapsed - this.elapsedPrev;
 
-    this.ctx.clearRect(
-      0 - currentTransform.e,
-      0 - currentTransform.f,
-      this.art.width,
-      this.art.height,
-    );
+      const currentTransform = this.ctx.getTransform();
+      this.ctx.clearRect(
+        0 - currentTransform.e,
+        0 - currentTransform.f,
+        this.art.width,
+        this.art.height,
+      );
 
-    /**
-     *
-     * 1. Update animations for all objects
-     * 2. Update scene and logic for all objects in scene
-     * 3. Draw the scene and all objects
-     */
+      /**
+       *
+       * 1. Update animations for all objects
+       * 2. Update scene and logic for all objects in scene
+       * 3. Draw the scene and all objects
+       */
 
-    if (this.art.isPlaying) {
-      this.playScene.preUpdate(dt);
-      this.updateSceneAnimations(this.playScene, dt);
-      this.playScene.update(dt);
+      if (this.art.isPlaying) {
+        this.playScene.preUpdate(dt);
+        this.updateSceneAnimations(this.playScene, dt);
+        this.playScene.update(dt);
 
-      this.drawSceneCanvasObjects(this.playScene);
-      if (this.art.displayGrid) {
-        this.drawGrid(
-          this.ctx,
-          this.art.height / this.art.tileSize,
-          this.art.width / this.art.tileSize,
-          this.art.tileSize,
-          this.art.gridColor,
-        );
+        this.drawSceneCanvasObjects(this.playScene);
+        if (this.art.displayGrid) {
+          this.drawGrid(
+            this.ctx,
+            this.art.height / this.art.tileSize,
+            this.art.width / this.art.tileSize,
+            this.art.tileSize,
+            this.art.gridColor,
+          );
+        }
+        if (this.art.startTime) {
+          const { hours, minutes, seconds } = diffHMS(
+            new Date(),
+            this.art.startTime,
+          );
+          if (minutes !== 0 && minutes % 5 === 0 && seconds === 0) {
+            this.art.audio.beep();
+            console.log(`Time since start ${hours}:${minutes}:${seconds}`);
+          }
+        }
+      } else {
+        if (this.pauseScene !== undefined) {
+          this.pauseScene.preUpdate(dt);
+          this.updateSceneAnimations(this.pauseScene, dt);
+          this.pauseScene.update(dt);
+
+          this.drawSceneCanvasObjects(this.pauseScene);
+        } else {
+          // Draw play scene without the updates of it
+
+          if (elapsed < 10) {
+            this.playScene.preUpdate(dt);
+            this.updateSceneAnimations(this.playScene, dt);
+            this.playScene.update(dt);
+          }
+          this.drawSceneCanvasObjects(this.playScene);
+          if (this.art.displayGrid) {
+            this.drawGrid(
+              this.ctx,
+              this.art.height / this.art.tileSize,
+              this.art.width / this.art.tileSize,
+              this.art.tileSize,
+              this.art.gridColor,
+            );
+          }
+        }
       }
+
+      this.elapsedPrev = elapsed;
+      requestAnimationFrame((elapsed) => this.run(elapsed));
+    } catch (e) {
       if (this.art.startTime) {
         const { hours, minutes, seconds } = diffHMS(
           new Date(),
           this.art.startTime,
         );
-        if (minutes !== 0 && minutes % 5 === 0 && seconds === 0) {
-          this.art.audio.beep();
-          console.log(`Time since start ${hours}:${minutes}:${seconds}`);
-        }
+        this.art.audio.beep();
+        console.log(`Time since start ${hours}:${minutes}:${seconds}`);
       }
-    } else {
-      this.updateSceneAnimations(this.pauseScene, dt);
-      this.pauseScene.preUpdate(dt);
 
-      this.pauseScene.update(dt);
+      if (this.art.audio.onoff) {
+        this.art.audio.onOffSwitch();
+      }
 
-      this.drawSceneCanvasObjects(this.pauseScene);
+      console.error(e);
+
+      // Lägg in dialog för reload av art...
     }
-
-    this.elapsedPrev = elapsed;
-
-    requestAnimationFrame((elapsed) => this.run(elapsed));
   }
 
   private drawGrid(

@@ -32,12 +32,7 @@ export default class Path {
     this.walkableTileValues = walkableTileValues ?? [GroundArea.GRASS];
     this.isWaiting = false;
 
-    this.path = createPathAStar(
-      posToCell(this.sprite.pos, this.sprite.scene.art!.tileSize),
-      this.goalCell,
-      this.sprite.scene.grid.getGrid(),
-      this.walkableTileValues,
-    );
+    this.path = [];
 
     this.currStart = { ...this.sprite.pos };
     this.currPathIdx = 0;
@@ -48,33 +43,73 @@ export default class Path {
 
   start() {
     this.sprite.currentPath = this;
-    this.sprite.path.isOnPath = true;
-    this.sprite.path.hasReachedGoal = false;
     this.hasStarted = true;
+
+    const startTile = posToCell(
+      this.sprite.pos,
+      this.sprite.scene.art.tileSize,
+    );
+
+    // Unoccupy start tile if it is a tile this sprite is standing on (TODO: can we avoid this).
+    if (this.sprite.scene.grid.isTileOccupied(startTile)) {
+      if (
+        this.sprite.scene.grid.getSpriteAtOccupiedTile(startTile) ===
+        this.sprite.id
+      ) {
+        this.sprite.scene.grid.unoccupyTile(this.sprite.id, this.sprite.pos);
+      } else {
+        throw new Error("Start tile of path is occupied by other sprite");
+      }
+    }
+    
+
+    // Create the path
+    this.path = createPathAStar(
+      posToCell(this.sprite.pos, this.sprite.scene.art!.tileSize),
+      this.goalCell,
+      this.sprite.scene.grid.getGrid(),
+      this.walkableTileValues,
+    );
+
+    // Occupy the start tile again
+    this.sprite.scene.grid.occupyTile(this.sprite.id, this.sprite.pos);
+
+    // Block the last tile of the path to prevent other sprite's from creating paths to the same destination
+    // It's important that it happens after path creation since otherwise we will not find a path to the end.
+
+    this.sprite.scene.grid.occupyTile(
+      this.sprite.id,
+      cellToPos(
+        this.path[this.path.length - 1],
+        this.sprite.scene.art.tileSize,
+      ),
+    );
+
+    // Push move intent to go to next path tile
+
+    this.sprite.scene.collisions.pushIntent(
+      this.sprite.id,
+      this.path[this.currPathIdx],
+      this.path[this.currPathIdx + 1],
+    );
 
     this.updateVelocity();
     this.updateDirection();
   }
 
   preUpdate(_: number): void {
-    if (this.hasReachedGoal || this.isWaiting || !this.hasStarted) return;
-
-    const diff = getPosDiff(this.sprite.pos, this.currStart);
-    const pixelDiff = Math.max(Math.abs(diff.x), Math.abs(diff.y));
-
-    // Standing on current tile in path and about to advance to the next, check if it is ok
-    if (pixelDiff === 0) {
-      this.sprite.scene.collisions.pushIntent(
-        this.sprite.id,
-        this.path[this.currPathIdx],
-        this.path[this.currPathIdx + 1],
-      );
-    } 
-
-    
-      if (pixelDiff >= this.sprite.scene.art.tileSize) {
-        this.next();
-      }
+    // const diff = getPosDiff(this.sprite.pos, this.currStart);
+    // const pixelDiff = Math.max(Math.abs(diff.x), Math.abs(diff.y));
+    // console.log("PREUPDATE PIXEL DIFF", pixelDiff, this.sprite.id);
+    // // Standing on current tile in path and about to advance to the next, check if it is ok
+    // if (pixelDiff === 0) {
+    //   console.log("PRE UPDATE", "0", this.currPathIdx, this.sprite.id);
+    //   this.sprite.scene.collisions.pushIntent(
+    //     this.sprite.id,
+    //     this.path[this.currPathIdx],
+    //     this.path[this.currPathIdx + 1],
+    //   );
+    // }
   }
 
   update(_: number): void {
@@ -83,7 +118,7 @@ export default class Path {
     this.updateVelocity();
     this.updateDirection();
 
-    if (this.sprite.scene.collisions.hasMoveIntent(this.sprite.id)) {
+    if (this.sprite.scene.collisions.hasResolutionresult(this.sprite.id)) {
       const resolutionResult = this.sprite.scene.collisions.getResolution(
         this.sprite.id,
       );
@@ -100,7 +135,6 @@ export default class Path {
         setTimeout(() => {
           this.isWaiting = false;
         }, ONE_SECOND);
-
       } else {
         this.isWaiting = true;
       }
@@ -125,7 +159,13 @@ export default class Path {
 
     if (this.currPathIdx === this.path.length - 1) {
       this.hasReachedGoal = true;
-      this.sprite.path.hasReachedGoal = true;
+    } else {
+      // Push intent to go to next tile
+      this.sprite.scene.collisions.pushIntent(
+        this.sprite.id,
+        this.path[this.currPathIdx],
+        this.path[this.currPathIdx + 1],
+      );
     }
   }
 
@@ -133,8 +173,6 @@ export default class Path {
     if (this.sprite.currentPath === this) {
       this.sprite.currentPath = null;
     }
-    this.sprite.path.isOnPath = false;
-    this.sprite.path.hasReachedGoal = false;
   }
 
   getCurrentPath(): Cell[] {

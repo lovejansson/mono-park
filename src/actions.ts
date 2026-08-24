@@ -1,7 +1,7 @@
 import {
   type SkateActionSpec,
   ActionConstructors as SkateConstructors,
-} from "./skate-park/SkatePark";
+} from "./skate-park/Skate";
 import {
   type FikaActionSpec,
   ActionConstructors as FikaConstructors,
@@ -56,7 +56,7 @@ function getRegistry(): Registry {
       ...CommonConstructors,
       ...PlayBallActionConstructors,
       ...StrollActionConstructors,
-      ...DuckWalkActionConstructors
+      ...DuckWalkActionConstructors,
     } as Registry;
   }
   return registry;

@@ -74,6 +74,7 @@ class SitDown implements CafeUpdatable {
 
       this.human.direction = getOppositeDirection(this.seat.direction);
       this.human.animations.play(`idle-sit-${this.human.direction}`);
+      this.animSeq.finish();
     } else {
       this.animSeq.update(dt);
     }
@@ -145,6 +146,7 @@ class PlaceOrder implements CafeUpdatable {
 
           this.animationSeq.start();
         } else if (this.animationSeq.isFinished) {
+          this.animationSeq.finish();
           this.animationSeq = null;
           this.step = PlaceOrderStep.OPEN_DOOR_TO_ENTER;
         } else {
@@ -187,7 +189,7 @@ class PlaceOrder implements CafeUpdatable {
           if (playing !== null) {
             this.human.animations.stop(playing);
           }
-
+          this.animationSeq.finish();
           this.animationSeq = null;
           this.step = PlaceOrderStep.CLOSE_DOOR_AFTER_ENTER;
         } else {
@@ -247,7 +249,7 @@ class PlaceOrder implements CafeUpdatable {
           this.human.pos = this.cafe.getArrivePos();
           this.step = PlaceOrderStep.CLOSE_DOOR_AFTER_EXIT;
           this.human.animations.play(`idle-stand-s`);
-
+          this.animationSeq.finish();
           this.animationSeq = null;
         } else {
           this.animationSeq.update(dt);
@@ -295,6 +297,7 @@ class PlaceOrder implements CafeUpdatable {
 
           this.animationSeq.start();
         } else if (this.animationSeq.isFinished) {
+          this.animationSeq.finish();
           this.animationSeq = null;
 
           setTimeout(() => {
@@ -528,7 +531,7 @@ class GiveOrder implements CafeUpdatable {
               transition: { dx: 0, dy: doorTravel },
               type: TransitionType.Distance,
               options: {
-                overlay: getFoodOverlay(this.human.direction, "pizza"),
+                overlays: [getFoodOverlay(this.human.direction, "pizza")],
               },
             },
           ]);
@@ -537,9 +540,10 @@ class GiveOrder implements CafeUpdatable {
         } else if (this.animationSeq.isFinished) {
           this.human.direction = "s";
           this.human.pos = this.restaurant.getArrivePos();
+          this.animationSeq.finish();
           this.animationSeq = null;
           this.human.animations.play("idle-stand-hold-s", {
-            overlay: getFoodOverlay(this.human.direction, "pizza"),
+            overlays: [getFoodOverlay(this.human.direction, "pizza")]
           });
           this.step = GiveOrderStep.CLOSE_DOOR_AFTER_EXIT;
         } else {
@@ -579,7 +583,7 @@ class GiveOrder implements CafeUpdatable {
               transition: { dx: xDiff, dy: 0 },
               type: TransitionType.Distance,
               options: {
-                overlay: getFoodOverlay(this.human.direction, "pizza"),
+                overlays: [getFoodOverlay(this.human.direction, "pizza")],
               },
             },
           ]);
@@ -591,6 +595,7 @@ class GiveOrder implements CafeUpdatable {
             y: Math.round(this.human.pos.y / tileSize) * tileSize,
           };
           this.human.pos = snappedPos;
+          this.animationSeq.finish();
           this.animationSeq = null;
           this.step = GiveOrderStep.WALK_TO_TABLE;
         } else {
@@ -607,12 +612,17 @@ class GiveOrder implements CafeUpdatable {
             this.human.pos,
             this.human.scene.art!.tileSize,
           );
-          this.goTo = new GoTo(this.human, goalPos,  [GroundArea.GRASS, GroundArea.GRAVEL, GroundArea.BRICKS],0, {
-            walk: "walk-hold",
-            idle: "idle-stand-hold",
-            overlayFn: (human: Sprite) =>
-              getFoodOverlay(human.direction, "pizza"),
-          });
+          this.goTo = new GoTo(
+            this.human,
+            goalPos,
+            [GroundArea.GRASS, GroundArea.GRAVEL, GroundArea.BRICKS], [], 0,
+            {
+              walk: "walk-hold",
+              idle: "idle-stand-hold",
+              overlayFn: (human: Sprite) =>
+                getFoodOverlay(human.direction, "pizza"),
+            },
+          );
           this.goTo.init();
         } else if (this.goTo.isComplete()) {
           this.goTo = null;
@@ -677,6 +687,7 @@ class GiveOrder implements CafeUpdatable {
         } else if (this.animationSeq.isFinished) {
           const arrivePos = this.restaurant.getArrivePos();
           this.human.pos = { x: arrivePos.x, y: arrivePos.y };
+          this.animationSeq.finish();
           this.animationSeq = null;
           this.step = GiveOrderStep.OPEN_DOOR_TO_ENTER;
         } else {
@@ -727,6 +738,7 @@ class GiveOrder implements CafeUpdatable {
             this.human.animations.stop(playing);
           }
           // this.human.setVisible(false);
+          this.animationSeq.finish();
           this.animationSeq = null;
           this.step = GiveOrderStep.CLOSE_DOOR_AFTER_ENTER;
         } else {
@@ -797,10 +809,9 @@ class Eat implements CafeUpdatable {
   init() {}
 
   update(_: number): void {
-
     if (!this.human.animations.isPlaying(`eat-${this.human.direction}`)) {
       this.human.animations.play(`eat-${this.human.direction}`, {
-        overlay: getFoodOverlay(this.human.direction, "pizza"),
+        overlays: [getFoodOverlay(this.human.direction, "pizza")],
       });
     }
   }

@@ -1,5 +1,13 @@
+import { GoTo } from "../commonActions";
 import { randomEl, Sprite, type Direction, type Vec2 } from "../lib";
-import { easeOut, euclidean, isSamePos, roundToDecimal } from "../lib/utils";
+import {
+  easeOut,
+  euclidean,
+  isSamePos,
+  manhattan,
+  posToCell,
+  roundToDecimal,
+} from "../lib/utils";
 import type Play from "../Play";
 
 export type PlayerArea = {
@@ -18,8 +26,7 @@ export default class BallGame {
   private playerAreas: (PlayerArea & { player: number | null })[];
   private passTargetPosByPlayer: Map<number, Vec2>;
   private chillinPositions: Vec2[];
-  private chillPosState: Map<string, boolean>;
-  private playerIsInExchange: boolean;
+  private playerInExchange: number | null;
 
   constructor(
     play: Play,
@@ -35,27 +42,43 @@ export default class BallGame {
     this.playerAreas = playerAreas.map((pa) => ({ ...pa, player: null }));
     this.passTargetPosByPlayer = new Map();
     this.chillinPositions = chillinPositions;
-    this.chillPosState = new Map(
-      chillinPositions.map((p) => [this.chillPosKey(p), true]),
-    );
-
-    this.playerIsInExchange = false;
+    this.playerInExchange = null;
   }
 
-  private chillPosKey(pos: Vec2): string {
-    return `${pos.x},${pos.y}`;
+  getPlayerPositions(): Vec2[] {
+    return this.playerAreas.flatMap((a) => a.positions);
+  }
+
+  getOtherPlayerPositions(id: number): Vec2[] {
+    return this.playerAreas
+      .filter((a) => a.player !== id)
+      .flatMap((a) => a.positions);
   }
 
   canQuit(): boolean {
-    return this.players.length > 2 && !this.playerIsInExchange;
+    return this.players.length > 2 && this.playerInExchange === null;
   }
 
   canEnter(): boolean {
-    return this.players.length < 4 && !this.playerIsInExchange;
+    return this.players.length < 4 && this.playerInExchange === null;
   }
 
-  playerHasExchanged(): void {
-    this.playerIsInExchange = false;
+  isPlayerInExchange(): boolean {
+    return this.playerInExchange !== null;
+  }
+
+  playerHasExchanged(id: number): void {
+    if (this.playerInExchange !== id)
+      throw new Error(
+        `Player ${id} is not in exchange. State: ${this.playerInExchange}`,
+      );
+    this.playerInExchange = null;
+  }
+
+  setPlayerInExchange(id: number): void {
+    if (this.playerInExchange !== null)
+      throw new Error(`Player is already in exchange ${this.playerInExchange}`);
+    this.playerInExchange = id;
   }
 
   enter(id: number): void {
@@ -70,8 +93,6 @@ export default class BallGame {
     this.players.push(id);
 
     playerArea.player = id;
-
-    this.playerIsInExchange = true;
   }
 
   quit(id: number): void {
@@ -85,40 +106,72 @@ export default class BallGame {
 
     this.players.splice(idx, 1);
     playerArea.player = null;
-    this.playerIsInExchange = true;
   }
 
-  getChillPos(): Vec2 {
-    const p = this.chillinPositions.find(
-      (pos) => this.chillPosState.get(this.chillPosKey(pos)) === true,
+  hasChillPos(): boolean {
+    return (
+      this.chillinPositions.find(
+        (p) => !this.play.grid.isTileOccupied(posToCell(p, this.play.tileSize)),
+      ) !== undefined
     );
-
-    if (p === undefined) throw new Error("No chill pos left!");
-
-    this.chillPosState.set(this.chillPosKey(p), false);
-
-    return p;
   }
 
-  returnChillPos(pos: Vec2): void {
-    const p = this.chillinPositions.find((p) => isSamePos(p, pos));
+  getChillPos(id: number): Vec2 {
 
-    if (p === undefined) throw new Error("Chill pos not found!");
+    // Pick the closest chill pos to the player 
+    
+    const player = this.play.getBaller(id);
 
-    this.chillPosState.set(this.chillPosKey(p), true);
+    let min = Infinity;
+    let pos: Vec2 | null = null;
+
+    for (const p of this.chillinPositions) {
+      if (this.play.grid.isTileOccupied(posToCell(p, this.play.tileSize))) {
+        continue;
+      }
+
+      const dist = manhattan(
+        posToCell(p, this.play.tileSize),
+        posToCell(player.pos, this.play.tileSize),
+      );
+
+      if (dist < min) {
+        min = dist;
+        pos = p;
+      }
+    }
+
+    if (pos === null) throw new Error("No chill pos left!");
+
+    return pos;
   }
 
   isPlaying(id: number): boolean {
     return this.players.find((p) => p === id) !== undefined;
   }
 
-  getRandomPlayer(me: number): number {
+  getPlayerToPassTo(me: number): number {
     let player = me;
 
+    // Pick another player that is not walking right now
     while (player === me) {
-      const p = randomEl(this.players);
-      if (p === null) throw new Error("No player found.");
-      player = p;
+      const pID = randomEl(this.players);
+
+      if (pID === null) throw new Error("No player found.");
+
+      const playerObj = this.play.getBaller(pID);
+
+      // Only pick players that are in their player areas to not pass to someone who hasn't arrived to the game yet
+
+      const playerArea = this.getPlayerArea(pID);
+
+      const playerIsStandingAtAreaPos = playerArea.positions.find((p) =>
+        isSamePos(playerObj.pos, p),
+      );
+
+      if (!playerIsStandingAtAreaPos) continue;
+
+      player = pID;
     }
 
     return player;
@@ -146,9 +199,16 @@ export default class BallGame {
 
   setPlayerWithBall(id: number): void {
     this.playerWithBall = id;
-    const player = this.play.getHuman(id);
+    const player = this.play.getBaller(id);
+    const playerArea = this.playerAreas.find(
+      (a) => a.player === this.playerWithBall,
+    );
 
-    switch (player.direction) {
+    if (playerArea === undefined)
+      throw new Error(`Player area for player ${id} not found`);
+
+    // Position the ball in front of the player
+    switch (playerArea.direction) {
       case "n":
         this.ball.pos = { x: player.pos.x, y: player.pos.y - BALL_PLAYER_DIFF };
         break;
@@ -166,9 +226,13 @@ export default class BallGame {
     }
   }
 
-  getPassTargetPos(id: number): Vec2 | null {
+  getPassTargetPos(id: number): Vec2 {
     const pos = this.passTargetPosByPlayer.get(id);
-    return pos ? { ...pos } : null;
+
+    if (pos === undefined)
+      throw new Error(`Pass target pos not found for player ${id}`);
+
+    return pos;
   }
 
   pass(to: number) {
@@ -178,6 +242,7 @@ export default class BallGame {
     let areaPos = randomEl(playerArea.positions)!;
     let pos = { ...areaPos };
 
+    // Goal pos for ball to shoot to which is in front of the player target position
     switch (facing) {
       case "n":
         pos = { x: areaPos.x, y: areaPos.y - BALL_PLAYER_DIFF };
@@ -237,11 +302,13 @@ export class Ball extends Sprite {
   init(): void {
     this.animations.onFrameChange = (_: string) => {
       if (this.state.isInAir) {
+        // Calculate the fraction of how far the ball should have reached by now time (t) divided by total duration
         const posChange = roundToDecimal(
           easeOut(this.state.t / this.state.duration, 4),
           2,
         );
 
+        // Calculate a slight arc offset to get the ball to curve
         const arcOffset =
           (Math.sin(posChange * Math.PI) * this.scene.art!.tileSize) / 2;
 

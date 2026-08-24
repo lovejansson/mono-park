@@ -1,10 +1,14 @@
 export default class AudioPlayer {
   onoff: boolean;
-  sounds: Map<string, string>;
-  buffers: Map<string, AudioBuffer>;
-  playingAudioNodes: Map<string, AudioBufferSourceNode>;
-  audioCtx: AudioContext;
-  #volumeNode: GainNode;
+  private sounds: Map<string, string>;
+  private buffers: Map<string, AudioBuffer>;
+
+  private playingAudioNodes: Map<
+    string,
+    { source: AudioBufferSourceNode; volume: GainNode; isOn: boolean }
+  >;
+  private audioCtx: AudioContext;
+  private muteNode: GainNode;
 
   constructor() {
     this.sounds = new Map();
@@ -13,8 +17,8 @@ export default class AudioPlayer {
     this.onoff = false;
 
     this.audioCtx = new window.AudioContext();
-    this.#volumeNode = this.audioCtx.createGain();
-    this.#volumeNode.connect(this.audioCtx.destination);
+    this.muteNode = this.audioCtx.createGain();
+    this.muteNode.connect(this.audioCtx.destination);
   }
 
   async add(id: string, path: string): Promise<void> {
@@ -44,24 +48,88 @@ export default class AudioPlayer {
     this.sounds.clear();
   }
 
-  play(id: string, loop = false): void {
+  isMuted(): boolean {
+    return this.muteNode.gain.value === 0;
+  }
+  toggleSound(): void {
+    this.muteNode.gain.value = this.isMuted() ? 1 : 0;
+  }
+
+  playlist(sounds: string[], volume: number = 1, loop = false): void {
+     if (!this.onoff) return;
+    this.play(sounds[0], volume);
+
+    const audio = this.playingAudioNodes.get(sounds[0]);
+
+    if (audio === undefined)
+      throw new Error("Failed to start next playlist track");
+
+    audio.source.addEventListener("ended", () => {
+       if (!this.onoff) return;
+        this.nextInPlaylist(sounds, 0, volume, loop);
+      
+    });
+  }
+
+  private nextInPlaylist(
+    sounds: string[],
+    currIdx: number,
+    volume: number = 1,
+    loop = false,
+  ): void {
+     if (!this.onoff) return;
+    if (currIdx === sounds.length - 1) {
+      if (loop) {
+        currIdx = 0;
+      } else {
+        return;
+      }
+    } else {
+      currIdx += 1;
+    }
+
+    this.play(sounds[currIdx], volume);
+
+    const audio = this.playingAudioNodes.get(sounds[currIdx]);
+
+    if (audio === undefined)
+      throw new Error("Failed to start next playlist track");
+
+    audio.source.addEventListener("ended", () => {
+      this.nextInPlaylist(sounds, currIdx, volume, loop);
+    });
+  }
+
+  play(id: string, volume: number = 1, loop = false): void {
     if (!this.onoff) throw new AudioPlayerOffStateError("play");
 
-    if (this.playingAudioNodes.has(id)) return; // already playing
+    if (this.playingAudioNodes.has(id)) return;
 
-    if (this.audioCtx.state === "suspended") this.audioCtx.resume();
+    // if (this.audioCtx.state === "suspended") {
+    //   throw new Error("Audio context suspended")
+    // }
 
     const audioBuffer = this.buffers.get(id);
-    if (!audioBuffer) throw new AudioNotFoundError(id);
+    if (audioBuffer === undefined) throw new AudioNotFoundError(id);
 
     const audioSource = this.audioCtx.createBufferSource();
     audioSource.buffer = audioBuffer;
     audioSource.loop = loop;
 
-    audioSource.connect(this.#volumeNode);
+    const volumeNode = this.audioCtx.createGain();
+    volumeNode.connect(this.muteNode);
+
+    volumeNode.gain.setValueAtTime(volume, this.audioCtx.currentTime);
+
+    audioSource.connect(volumeNode);
     audioSource.start();
 
-    this.playingAudioNodes.set(id, audioSource);
+    this.playingAudioNodes.set(id, {
+      source: audioSource,
+      volume: volumeNode,
+      isOn: true,
+    });
+
     audioSource.addEventListener("ended", () => {
       this.playingAudioNodes.delete(id);
     });
@@ -72,15 +140,21 @@ export default class AudioPlayer {
   }
 
   stop(id: string): void {
-    const source = this.playingAudioNodes.get(id);
-    if (source) {
-      source.stop();
-    }
+    const audio = this.playingAudioNodes.get(id);
+
+    if (audio === undefined) throw new Error("Audio not on");
+
+    audio.source.stop();
   }
 
-  setVolume(volume: number): void {
+  setVolume(id: string, volume: number): void {
+    const audio = this.playingAudioNodes.get(id);
+
+    if (audio === undefined) throw new Error("Audio not on");
+
     if (volume < 0 || volume > 1) throw new InvalidVolumeRangeError(volume);
-    this.#volumeNode.gain.setValueAtTime(volume, this.audioCtx.currentTime);
+
+    audio.volume.gain.setValueAtTime(volume, this.audioCtx.currentTime);
   }
 
   onOffSwitch(): void {
@@ -116,8 +190,8 @@ export default class AudioPlayer {
   }
 
   private turnOffAllAudios(): void {
-    for (const audioSource of this.playingAudioNodes.values()) {
-      audioSource.stop();
+    for (const a of this.playingAudioNodes.values()) {
+      a.source.stop();
     }
   }
 }

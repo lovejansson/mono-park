@@ -81,7 +81,8 @@ export function createPathAStar(
   // if (!cellIsWithinBounds(to, grid))
   //   throw new Error("'to' cell is out of bounds");
 
-  // console.log(from, to);
+  console.log(from, to);
+  console.log(grid[from.row][from.col], grid[to.row][to.col])
 //   console.log(grid)
 //  console.log(grid[from.row][from.col])
   if(isSameCell(from, to)) throw new Error("from cell and to cell are the same!")
@@ -166,8 +167,8 @@ export function createPathAStar(
   }
 
   if (!pathMap[to.row][to.col]) {
-    console.log(from, to)
-    throw new Error("No path found!", );
+    console.log(grid);
+    throw new Error("No path found!");
   }
 
   return reconstructPath(pathMap);

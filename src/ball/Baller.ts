@@ -1,4 +1,3 @@
-import { type ActionTag } from "../actions";
 import Fika from "../cafe/Fika";
 import type Group from "../Group";
 import Human from "../Human";
@@ -17,49 +16,49 @@ export default class Baller extends Human {
   static WALK_SPEED = 1;
 
   private game: BallGame;
-  private initAction: ActionTag;
+  private initBall: boolean;
 
   constructor(
     scene: Play,
     pos: Vec2,
     name: string,
-    initAction: ActionTag,
     game: BallGame,
-    group: Group
+    group: Group,
+    initBall: boolean = false,
   ) {
     super(scene, pos, name, group);
-    this.initAction = initAction;
     this.game = game;
+    this.initBall = initBall;
   }
 
   init(): void {
     super.init();
+
     this.animations.registerSpritesheet(`${this.name}-baller`);
-    switch (this.initAction) {
-      case Fika.TAG:
-        break;
-      case PlayBall.TAG:
-        this.game.enter(this.id);
-     
-        const playerArea = this.game.getPlayerArea(this.id);
 
-        const gamePos = { ...randomEl(playerArea.positions)! };
+    if (this.game.canEnter()) {
+      this.game.enter(this.id);
 
-        this.pos = { ...gamePos };
-
+      const playerArea = this.game.getPlayerArea(this.id);
+      this.direction = playerArea.direction;
+      const gamePos = { ...randomEl(playerArea.positions)! };
+      this.pos = { ...gamePos };
+      this.scene.grid.occupyTile(this.id, this.pos);
+      if (this.initBall) {
         this.game.setPlayerWithBall(this.id);
-
-        this.transitionToAction(PlayBall.TAG, this, this.game, { ...gamePos });
-        break;
-      case Chillin.TAG:
-        this.transitionToAction(Chillin.TAG, this, this.game);
-        break;
-      default:
-        throw new Error("Invalid state for baller");
+      }
+      this.transitionToAction(PlayBall.TAG, this, this.game, gamePos);
+    } else {
+      const pos = this.game.getChillPos(this.id);
+      this.pos = { ...pos };
+      this.scene.grid.occupyTile(this.id, this.pos);
+      this.transitionToAction(Chillin.TAG, this, this.game, pos);
     }
   }
 
   update(dt: number): void {
+    this.currentAction.update(dt);
+
     if (this.currentAction.isComplete()) {
       switch (this.currentAction.tag) {
         case Fika.TAG:
@@ -75,7 +74,5 @@ export default class Baller extends Human {
           throw new Error("Invalid state for baller");
       }
     }
-
-    this.currentAction.update(dt);
   }
 }

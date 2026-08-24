@@ -1,7 +1,7 @@
 import type { Updatable } from "./actions";
 import type { Sprite, Vec2 } from "./lib";
 import type { Direction } from "./lib/types";
-import { AnimationSequence, TransitionType } from "./lib";
+import { AnimationSequence, posToCell, TransitionType } from "./lib";
 import type { OverlayOptions } from "./lib";
 import { Path } from "./lib";
 import type Play from "./Play";
@@ -63,11 +63,13 @@ export class GoTo implements CommonUpdatable {
   private walkableTiles: GroundArea[];
   private startDelay: number;
   private delayTimer: Timer;
+  private preBlockTiles?: Vec2[];
 
   constructor(
     human: Human,
     pos: Vec2,
     walkableTiles: GroundArea[] = [GroundArea.GRASS, GroundArea.GRAVEL],
+    preBlockTiles?: Vec2[],
     startDelay: number = 0,
     animBase?: {
       walk: string;
@@ -89,6 +91,7 @@ export class GoTo implements CommonUpdatable {
     this.walkableTiles = walkableTiles;
     this.startDelay = startDelay;
     this.delayTimer = new Timer();
+    this.preBlockTiles = preBlockTiles;
   }
 
   init() {
@@ -104,8 +107,12 @@ export class GoTo implements CommonUpdatable {
 
     if (this.startDelay > 0) {
       this.delayTimer.start(this.startDelay);
+      // Preoccupy before we can start real path which will occupy the goal there, to prevent others from occupying our goal
+      scene.grid.occupyTile(this.human.id, this.pathGoalPos);
     } else if (this.startAlignSeq !== null) {
       this.startAlignSeq.start();
+      // Preoccupy before we can start real path which will occupy the goal there, to prevent others from occupying our goal
+      scene.grid.occupyTile(this.human.id, this.pathGoalPos);
     } else {
       this.startPathPhase(scene);
     }
@@ -130,6 +137,7 @@ export class GoTo implements CommonUpdatable {
       this.startAlignSeq.update(dt);
 
       if (this.startAlignSeq.isFinished) {
+        this.startAlignSeq.finish();
         this.startAlignSeq = null;
         this.startPathPhase(scene);
       }
@@ -162,7 +170,9 @@ export class GoTo implements CommonUpdatable {
           this.human.animations.play(
             `${this.walkAnimBase}-${this.human.direction}`,
             {
-              overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+              overlays: this.overlayFn
+                ? [this.overlayFn(this.human)]
+                : undefined,
             },
           );
         }
@@ -184,6 +194,7 @@ export class GoTo implements CommonUpdatable {
       this.endAlignSeq.update(dt);
 
       if (this.endAlignSeq.isFinished) {
+        this.endAlignSeq.finish();
         this.endAlignSeq = null;
       }
 
@@ -194,9 +205,8 @@ export class GoTo implements CommonUpdatable {
     if (
       !this.human.animations.isPlaying(`${this.idleAnimBase}-${animDirection}`)
     ) {
-      console.log("SETTING FINAL ANIM", this.idleAnimBase, animDirection);
       this.human.animations.play(`${this.idleAnimBase}-${animDirection}`, {
-        overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+        overlays: this.overlayFn ? [this.overlayFn(this.human)] : undefined,
       });
     }
   }
@@ -227,12 +237,35 @@ export class GoTo implements CommonUpdatable {
       return;
     }
 
-    this.path = new Path(
-      this.human,
-      this.pathGoalPos,
-      this.walkableTiles,
-    );
+
+    // Unoccupy goal tile if its already blocked by us?
+    const goalTile = posToCell(this.pathGoalPos, scene.art.tileSize);
+
+    if (scene.grid.isTileOccupied(goalTile)) {
+      const occupant = scene.grid.getSpriteAtOccupiedTile(goalTile);
+
+      if (occupant !== this.human.id)
+        throw new Error(`Someone else occupied path goal: ${occupant}`);
+
+      scene.grid.unoccupyTile(this.human.id, this.pathGoalPos);
+    }
+
+    if (this.preBlockTiles) {
+  
+      for (const p of this.preBlockTiles) {
+        this.human.scene.grid.blockTile(this.human.id, p);
+      }
+    }
+
+    this.path = new Path(this.human, this.pathGoalPos, this.walkableTiles);
     this.path.start();
+
+    if (this.preBlockTiles) {
+  
+      for (const p of this.preBlockTiles) {
+        this.human.scene.grid.unBlockTile(this.human.id, p);
+      }
+    }
   }
 
   private buildMoveSequence(target: Vec2): AnimationSequence | null {
@@ -251,7 +284,7 @@ export class GoTo implements CommonUpdatable {
           type: TransitionType.Distance,
           transition: { dx, dy: 0 },
           options: {
-            overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+            overlays: this.overlayFn ? [this.overlayFn(this.human)] : undefined,
           },
         }),
       );
@@ -266,7 +299,7 @@ export class GoTo implements CommonUpdatable {
           type: TransitionType.Distance,
           transition: { dx: 0, dy },
           options: {
-            overlay: this.overlayFn ? this.overlayFn(this.human) : undefined,
+            overlays: this.overlayFn ? [this.overlayFn(this.human)] : undefined,
           },
         }),
       );
@@ -316,9 +349,9 @@ export class StandIdle implements CommonUpdatable {
   }
 }
 
-export class SitOnBench implements CommonUpdatable {
+export class SittingOnBench implements CommonUpdatable {
   static TAG: "sit-bench" = "sit-bench";
-  readonly tag: "sit-bench" = SitOnBench.TAG;
+  readonly tag: "sit-bench" = SittingOnBench.TAG;
   private human: Human;
   private timer: Timer | null;
   private duration: number | null;
@@ -362,8 +395,9 @@ export class SitOnBench implements CommonUpdatable {
 
   update(dt: number): void {
     if (this.animSeqStandUp?.hasStarted()) {
-
       if (this.animSeqStandUp.isFinished) {
+        this.animSeqStandUp.finish();
+
         this.human.direction = "s";
         this.human.pos.y = this.bench.pos.y + this.bench.height;
         this.human.animations.play("idle-stand-s");
@@ -375,8 +409,8 @@ export class SitOnBench implements CommonUpdatable {
     }
 
     if (this.animSeqSitDown?.hasStarted()) {
-
       if (this.animSeqSitDown.isFinished) {
+        this.animSeqSitDown.finish();
 
         this.human.pos.y -= 4;
         this.human.direction = "s";
@@ -392,6 +426,7 @@ export class SitOnBench implements CommonUpdatable {
       this.human.pos.y += 4;
       this.animSeqStandUp!.start();
       this.timer = null;
+
       return;
     }
   }
@@ -441,7 +476,7 @@ export class SitOnGrass implements CommonUpdatable {
 
 const spec = {
   "go-to": { ctor: GoTo },
-  "sit-bench": { ctor: SitOnBench },
+  "sit-bench": { ctor: SittingOnBench },
   "sit-grass": { ctor: SitOnGrass },
   "stand-idle": { ctor: StandIdle },
 } as const;

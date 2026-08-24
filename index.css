@@ -20,6 +20,11 @@ html {
 
 h1 {
   font-family: "Tiny5", monospace;
+  font-size: 2.8rem;
+}
+
+h2 {
+  font-family: "Tiny5", monospace;
   font-size: 2.4rem;
 }
 
@@ -28,46 +33,59 @@ body {
   border-radius: 0;
   position: relative;
   overflow: 0;
+  font-family: "Source Code Pro", monospace;
+  font-size: 1.6rem;
 }
 
-header {
+#window-header {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 32px;
-  padding: 0 1.6rem;
+  padding: 0.5rem 1.6rem;
   display: flex;
+  opacity: 0;
   flex-direction: row;
-  justify-content: space-between;
   align-items: center;
   app-region: drag;
-  color: #ececec;
-  background-color: #212121;
-  z-index: 2f;
+  color: #f8eec0;
+  gap: 1rem;
+  background-color: #35553d;
+  z-index: 2;
+  transition: opacity ease 0.25s;
 }
 
-header button {
+body:not(.fullscreen):hover #window-header {
+  opacity: 1;
+}
+
+body.fullscreen #window-header:hover {
+  opacity: 1;
+}
+
+button:focus-visible {
+  outline: 2px solid #f8eec0;
+}
+
+#window-header button {
   app-region: no-drag;
-  color: #ececec;
-  font-size: 24px;
+  color: #f8eec0;
   background: none;
   border: none;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
 }
 
-header button:hover {
+#window-header button:hover {
   opacity: 0.75;
+}
+
+#window-header section:last-of-type {
+  margin-left: auto;
 }
 
 button {
   cursor: pointer;
-}
-
-header button svg {
-  width: 24px;
-  height: 24px;
 }
 
 body.fullscreen .titlebar {
@@ -80,4 +98,60 @@ body.fullscreen main {
 
 .hidden {
   display: none;
+}
+
+#dialog-error div {
+  width: fit-content;
+  position: fixed;
+  top: 25%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2.4rem;
+
+  color: #f8eec0;
+
+  background-color: #6a7a35;
+  border-color: #202e2c;
+}
+
+#dialog-error header {
+  background-color: #35553d;
+  padding: 0.5rem 1.6rem;
+  border-bottom: 2px solid #202e2c;
+}
+
+#dialog-error main {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  gap: 1rem;
+}
+
+#dialog-error footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem;
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+}
+
+#btn-reload {
+  border: none;
+  background: none;
+  color: #f8eec0;
+  border: 2px solid #202e2c;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: color ease 0.2s;
+}
+
+#btn-reload:hover {
+  color: #f8eec0cc;
 }

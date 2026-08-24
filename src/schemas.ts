@@ -20,7 +20,7 @@ const baseObject = z.object({
 
 const benchObject = baseObject.extend({
   objectType: z.literal("bench"),
-  data: z.object({isAtSkatePark: boolean()}),
+  data: z.object({ isAtSkateGround: boolean() }),
 });
 
 const houseObject = baseObject.extend({
@@ -41,10 +41,6 @@ const bowlObject = baseObject.extend({
 
 const vendingMachineObject = baseObject.extend({
   objectType: z.literal("vending-machine"),
-  data: z.object({}),
-});
-const bridgeObject = baseObject.extend({
-  objectType: z.literal("bridge"),
   data: z.object({}),
 });
 
@@ -73,7 +69,6 @@ const objectSchemas = {
   bowl: bowlObject,
   rail: railObject,
   house: houseObject,
-  bridge: bridgeObject,
 } as const;
 
 export type ParsedObject =
@@ -81,7 +76,6 @@ export type ParsedObject =
   | z.infer<typeof tableObject>
   | z.infer<typeof bowlObject>
   | z.infer<typeof railObject>
-  | z.infer<typeof bridgeObject>
   | z.infer<typeof vendingMachineObject>
   | z.infer<typeof staticImageObject>
   | z.infer<typeof houseObject>;
