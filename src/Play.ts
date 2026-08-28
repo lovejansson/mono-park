@@ -25,6 +25,7 @@ import squidSkaterJSON from "./assets/spritesheets/squid-skater.json";
 import squidBaseJSON from "./assets/spritesheets/squid-base.json";
 import doorCafeJSON from "./assets/spritesheets/door-cafe.json";
 import drinksJSON from "./assets/spritesheets/drinks.json";
+import waiterJSON from "./assets/spritesheets/waiter.json";
 
 import amandaBaseJSON from "./assets/spritesheets/amanda-base.json";
 import amandaBallerJSON from "./assets/spritesheets/amanda-baller.json";
@@ -43,6 +44,10 @@ import sashaJSON from "./assets/spritesheets/sasha-base.json";
 
 import hawkJSON from "./assets/spritesheets/hawk-base.json";
 import bowlJSON from "./assets/spritesheets/bowl-base.json";
+import michaelBaseJSON from "./assets/spritesheets/michael-base.json";
+import aikoBaseJSON from "./assets/spritesheets/aiko-base.json";
+import jadenBaseJSON from "./assets/spritesheets/jaden-base.json";
+import kellyBaseJSON from "./assets/spritesheets/kelly-base.json";
 
 import ballJSON from "./assets/spritesheets/ball.json";
 import duckJSON from "./assets/spritesheets/duck.json";
@@ -50,9 +55,9 @@ import foodsCafeJSON from "./assets/spritesheets/foods.json";
 import { type AsepriteJSON } from "./lib/index";
 import { Door } from "./cafe/House.ts";
 import { parseObject, type ParsedObject } from "./schemas.ts";
-import Table from "./cafe/Table.ts";
-import Cafe, { Tables } from "./cafe/Cafe.ts";
-import Human from "./Human.ts";
+import Table, { Seat } from "./cafe/Table.ts";
+import Cafe from "./cafe/Cafe.ts";
+
 import BallGame, { Ball, type PlayerArea } from "./ball/BallGame.ts";
 import Group from "./Group.ts";
 import Duck from "./ducks/Duck.ts";
@@ -70,6 +75,8 @@ import { StrollSpot, type StrollSpotData } from "./stroller/StrollPark.ts";
 import Baller from "./ball/Baller.ts";
 import VendingMachine from "./VendingMachine.ts";
 import Stroller from "./stroller/Stroller.ts";
+import CafeVisitor from "./CafeVisitor.ts";
+import Waiter from "./Waiter.ts";
 
 export default class Play extends Scene {
   private tilemap: Tilemap;
@@ -79,7 +86,7 @@ export default class Play extends Scene {
   private skaters: Skater[];
   private ballers: Baller[];
   private strollers: Stroller[];
-  private humans: Human[];
+  private cafeVisitors: Stroller[];
   private ducks: Duck[];
 
   public pondBench!: Bench; // Is set in init()
@@ -88,7 +95,6 @@ export default class Play extends Scene {
 
   private ballGame!: BallGame;
   public cafe!: Cafe;
-  public tables!: Tables; // Is set in init()
 
   strollPark!: StrollPark; // Is set in init()
   skateGround!: SkateGround; // Is set in init()
@@ -133,14 +139,8 @@ export default class Play extends Scene {
     this.ballers = [];
     this.ducks = [];
     this.staticImages = [];
-    this.humans = [];
     this.strollers = [];
-  }
-
-  getHuman(id: number): Human {
-    const human = this.humans.find((h) => h.id === id);
-    if (human === undefined) throw new Error("Human not found in scene.");
-    return human;
+    this.cafeVisitors = [];
   }
 
   getBaller(id: number): Baller {
@@ -178,6 +178,7 @@ export default class Play extends Scene {
     const skateGroundBenches: Bench[] = [];
     const strollSpots: StrollSpotData[] = [];
     const vendingMachines: VendingMachine[] = [];
+    const tables: Table[] = [];
 
     const flat = new Flat(
       this,
@@ -217,12 +218,21 @@ export default class Play extends Scene {
       const isSkateSpot = t.attributes.isSkateSpot === true;
       const isPond = t.attributes.isPond === true;
       const isBridgeSpot = t.attributes.isBridgeSpot === true;
+      const isBrick = t.attributes.isBrick === true;
 
       if (isWalkable) {
         this.grid.setTileValue(
           t.pos.y / this.tileSize,
           t.pos.x / this.tileSize,
           GroundArea.GRASS,
+        );
+      }
+
+      if (isBrick) {
+        this.grid.setTileValue(
+          t.pos.y / this.tileSize,
+          t.pos.x / this.tileSize,
+          GroundArea.BRICKS,
         );
       }
 
@@ -300,6 +310,7 @@ export default class Play extends Scene {
         skateGroundBenches,
         strollSpots,
         vendingMachines,
+        tables,
       );
     }
 
@@ -307,7 +318,7 @@ export default class Play extends Scene {
 
     console.dir(this.grid.getGrid());
 
-    this.tables = new Tables(this.objects.filter((o) => o instanceof Table));
+    this.cafe.init();
 
     this.skateGround = new SkateGround(
       this,
@@ -327,6 +338,8 @@ export default class Play extends Scene {
     this.initBallers(playerAreas, ballerChillPositions);
 
     this.initStrollers();
+
+    this.initCafeVisitors();
   }
 
   start() {
@@ -345,7 +358,7 @@ export default class Play extends Scene {
 
     const renderSortCompValue = new Map<number, number>();
 
-    const ballHolder = this.humans.find((h) => this.ballGame.hasGotBall(h.id));
+    const ballHolder = this.ballers.find((b) => this.ballGame.hasGotBall(b.id));
     const ballHolderAnim = ballHolder?.animations.getPlaying() ?? null;
     const shouldUseHolderBallSort =
       ballHolder !== undefined &&
@@ -391,29 +404,35 @@ export default class Play extends Scene {
       renderSortCompValue.set(s.id, s.pos.y);
     }
 
-    for (const h of this.humans) {
-      if (h.action === "fika" && h.isSitting()) {
+    for (const c of this.cafeVisitors) {
+      const table = this.cafe.getTable(c.group.name);
+
+      renderSortCompValue.set(c.id, table.pos.y + 1);
+    }
+
+    for (const b of this.ballers) {
+      if (b.action === "fika" && b.isSitting()) {
         const chair = this.objects.find(
           (o) =>
             o instanceof StaticImage &&
             o.image.includes("chair") &&
-            o.pos.x === h.pos.x,
+            o.pos.x === b.pos.x,
         );
 
         if (chair === undefined) throw new Error("Chair not found");
 
         // Sitting on the far side of a table should render behind it.
-        if (h.direction === "n") {
-          renderSortCompValue.set(h.id, h.pos.y - 1);
+        if (b.direction === "n") {
+          renderSortCompValue.set(b.id, b.pos.y - 1);
         } else {
-          renderSortCompValue.set(h.id, h.pos.y + 1);
+          renderSortCompValue.set(b.id, b.pos.y + 1);
         }
         if (chair === undefined) throw new Error("Chair not found");
 
         continue;
       }
 
-      renderSortCompValue.set(h.id, h.pos.y);
+      renderSortCompValue.set(b.id, b.pos.y);
     }
 
     for (const o of this.staticImages) {
@@ -426,7 +445,7 @@ export default class Play extends Scene {
 
     renderSortCompValue.set(this.pondBench.id, this.pondBench.pos.y);
 
-    for (const t of this.tables.getTables()) {
+    for (const t of this.cafe.getTables()) {
       renderSortCompValue.set(t.id, t.pos.y);
     }
 
@@ -501,6 +520,28 @@ export default class Play extends Scene {
     });
   }
 
+  getGroupMembers(group: string): number[] {
+    const groupMembers: number[] = [];
+
+    for (const b of this.ballers) {
+      if (b.group.name === group) groupMembers.push(b.id);
+    }
+
+    for (const s of this.strollers) {
+      if (s.group.name === group) groupMembers.push(s.id);
+    }
+
+    for (const s of this.skaters) {
+      if (s.group.name === group) groupMembers.push(s.id);
+    }
+
+    for (const cv of this.cafeVisitors) {
+      if (cv.group.name === group) groupMembers.push(cv.id);
+    }
+
+    return groupMembers;
+  }
+
   private pushSkater(skater: Skater) {
     const cell = getRandomFreeCell(this.grid.getGrid(), [
       GroundArea.SKATE_GROUND,
@@ -513,10 +554,116 @@ export default class Play extends Scene {
     this.addObject(skater);
   }
 
+  initCafeVisitors(): void {
+    const cafeVisitors = new Group(this, "cafe-visitors", []);
+
+    cafeVisitors.init();
+
+    this.pushCafeVisitor(
+      new CafeVisitor(
+        this,
+        {
+          x: 9 * this.tileSize,
+          y: this.tileSize * 11,
+        },
+        "jaden",
+        cafeVisitors,
+        "w",
+      ),
+    );
+
+    this.pushCafeVisitor(
+      new CafeVisitor(
+        this,
+        {
+          x: this.tileSize * 10,
+          y: this.tileSize * 10,
+        },
+        "kit",
+        cafeVisitors,
+        "n",
+      ),
+    );
+
+    this.pushCafeVisitor(
+      new CafeVisitor(
+        this,
+        {
+          x: this.tileSize * 8,
+          y: this.tileSize * 10,
+        },
+        "kelly",
+        cafeVisitors,
+        "e",
+      ),
+    );
+
+    const cafeVisitors2 = new Group(this, "cafe-visitors-2", []);
+
+    cafeVisitors2.init();
+
+    this.pushCafeVisitor(
+      new CafeVisitor(
+        this,
+        {
+          x: this.tileSize * 9,
+          y: this.tileSize * 4,
+        },
+        "aiko",
+        cafeVisitors2,
+        "w",
+      ),
+    );
+
+    this.pushCafeVisitor(
+      new CafeVisitor(
+        this,
+        {
+          x: this.tileSize * 8,
+          y: this.tileSize * 4,
+        },
+        "michael",
+        cafeVisitors2,
+        "e",
+      ),
+    );
+
+    this.cafe.reserveTable(
+      cafeVisitors2.name,
+      this.getGroupMembers(cafeVisitors2.name),
+    );
+
+    this.cafe.reserveTable(
+      cafeVisitors.name,
+      this.getGroupMembers(cafeVisitors.name),
+    );
+
+    for (const cv of this.cafeVisitors) {
+      cv.init();
+    }
+
+    const waiters = new Group(this, "waiters", []);
+
+    waiters.init();
+
+    const waiter = new Waiter(
+      this,
+      { x: this.cafe.pos.x, y: this.cafe.pos.y },
+      "waiter",
+      waiters,
+    );
+
+    this.addObject(waiter);
+
+    waiter.init();
+  }
+
   initSkaters(): void {
     const skaters = new Group(this, "skaters", []);
+    const skaters2 = new Group(this, "skaters2", []);
 
     skaters.init();
+    skaters2.init();
 
     this.pushSkater(
       new Skater(this, { x: 0, y: 0 }, "jazz", 10, SitOnBench.TAG, skaters),
@@ -531,15 +678,15 @@ export default class Play extends Scene {
     );
 
     this.pushSkater(
-      new Skater(this, { x: 0, y: 0 }, "spike", 10, RailObstacle.TAG, skaters),
+      new Skater(this, { x: 0, y: 0 }, "spike", 10, RailObstacle.TAG, skaters2),
     );
 
     this.pushSkater(
-      new Skater(this, { x: 0, y: 0 }, "kim", 10, FlatObstacle.TAG, skaters),
+      new Skater(this, { x: 0, y: 0 }, "kim", 10, FlatObstacle.TAG, skaters2),
     );
 
     this.pushSkater(
-      new Skater(this, { x: 0, y: 0 }, "squid", 4, FlatObstacle.TAG, skaters),
+      new Skater(this, { x: 0, y: 0 }, "squid", 4, FlatObstacle.TAG, skaters2),
     );
   }
 
@@ -561,7 +708,6 @@ export default class Play extends Scene {
           y: this.tileSize * 11,
         },
         "missy",
-        "stroll",
         grls,
       ),
     );
@@ -574,7 +720,6 @@ export default class Play extends Scene {
           y: this.tileSize * 10,
         },
         "kit",
-        "stroll",
         grls,
       ),
     );
@@ -587,7 +732,6 @@ export default class Play extends Scene {
           y: this.tileSize * 10,
         },
         "sasha",
-        "stroll",
         grls,
       ),
     );
@@ -609,7 +753,6 @@ export default class Play extends Scene {
           y: this.tileSize * 4,
         },
         "hawk",
-        "stroll",
         couple,
       ),
     );
@@ -622,10 +765,14 @@ export default class Play extends Scene {
           y: this.tileSize * 4,
         },
         "bowl",
-        "stroll",
         couple,
       ),
     );
+  }
+
+  private pushCafeVisitor(cafeVisitor: CafeVisitor): void {
+    this.cafeVisitors.push(cafeVisitor);
+    this.addObject(cafeVisitor);
   }
 
   private pushStroller(stroller: Stroller): void {
@@ -773,6 +920,7 @@ export default class Play extends Scene {
     skateGroundBenches: Bench[],
     strollSpots: StrollSpotData[],
     vendingMachines: VendingMachine[],
+    tables: Table[],
   ): ArtObject {
     // Mark out grid areas as not walkable for object TODO: needs something
 
@@ -907,53 +1055,61 @@ export default class Play extends Scene {
 
         this.addObject(door);
 
-        this.cafe = new Cafe(this, o.pos, o.width, o.height, o.name, door);
+        this.cafe = new Cafe(
+          this,
+          o.pos,
+          o.width,
+          o.height,
+          o.name,
+          door,
+          tables,
+        );
 
         this.addObject(this.cafe);
 
         return this.cafe;
 
       case "table":
-        const table = new Table(
-          this,
-          o.pos,
-          o.width,
-          o.height,
-          o.name,
-          [
+        const table = new Table(this, o.pos, o.width, o.height, o.name, [
+          new Seat(
+            this,
             {
-              pos: {
-                x: o.pos.x + this.tileSize,
-                y: o.pos.y,
-              },
-              direction: "n",
+              x: o.pos.x + this.tileSize,
+              y: o.pos.y - 2,
             },
+            "n",
+          ),
+
+          new Seat(
+            this,
             {
-              pos: {
-                x: o.pos.x + this.art!.tileSize * 2,
-                y: o.pos.y + this.art!.tileSize * 2,
-              },
-              direction: "e",
+              x: o.pos.x + this.art!.tileSize * 2 + 2,
+              y: o.pos.y + 10,
             },
+            "e",
+          ),
+          new Seat(
+            this,
             {
-              pos: {
-                x: o.pos.x + this.art!.tileSize,
-                y: o.pos.y + o.height - this.art!.tileSize,
-              },
-              direction: "s",
+              x: o.pos.x + this.art!.tileSize,
+              y: o.pos.y + o.height - this.art!.tileSize,
             },
+            "s",
+          ),
+          new Seat(
+            this,
             {
-              pos: {
-                x: o.pos.x,
-                y: o.pos.y + this.art!.tileSize,
-              },
-              direction: "w",
+              x: o.pos.x - 2,
+              y: o.pos.y + 10,
             },
-          ],
-          ["cafe"],
-        );
+            "w",
+          ),
+        ]);
 
         this.addObject(table);
+        tables.push(table);
+
+        table.init();
 
         return table;
       case "vending-machine": {
@@ -1085,6 +1241,14 @@ export default class Play extends Scene {
 
     this.loadSprite("hawk-base", hawkJSON as AsepriteJSON);
     this.loadSprite("bowl-base", bowlJSON as AsepriteJSON);
+
+    this.loadSprite("michael-base", michaelBaseJSON as AsepriteJSON);
+    this.loadSprite("aiko-base", aikoBaseJSON as AsepriteJSON);
+
+    this.loadSprite("jaden-base", jadenBaseJSON as AsepriteJSON);
+    this.loadSprite("kelly-base", kellyBaseJSON as AsepriteJSON);
+
+    this.loadSprite("waiter-base", waiterJSON as AsepriteJSON);
     // This is a transparent image for a "flat" obstacle... just bc static images require an image
 
     this.art!.images.add(

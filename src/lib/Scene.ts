@@ -34,14 +34,8 @@ export default abstract class Scene {
     this.objects.sort(compareFn);
   }
 
-  preUpdate(dt: number): void {
-    for (const obj of this.objects) {
-      obj.preUpdate(dt);
-    }
-    if (this.grid.isActive) this.collisions.resolve();
-  }
-
   update(dt: number): void {
+    if (this.grid.isActive) this.collisions.resolve();
     for (const obj of this.objects) {
       obj.update(dt);
     }

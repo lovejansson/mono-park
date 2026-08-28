@@ -13,24 +13,23 @@ type WalkStateActive = {
 type WalkState = WalkStateActive | WalkStateInactive;
 
 export default class Group {
-  private scene: Play;
-  private name: string;
+  name: string;
+  private play: Play;
   private walk: WalkState;
   private strollSpots: StrollSpot[];
   private currStrollSpotIdx: number;
 
   constructor(scene: Play, name: string, strollSpots: StrollSpot[]) {
-    this.scene = scene;
+    this.play = scene;
     this.name = name;
     this.walk = { isWalking: false };
     this.strollSpots = strollSpots;
     this.currStrollSpotIdx = 0;
-   
   }
 
   init() {
-    if(this.strollSpots.length === 0) return;
-     this.scene.strollPark.occupyStrollSpot(this.getStrollSpot(), this.name);
+    if (this.strollSpots.length === 0) return;
+    this.play.strollPark.occupyStrollSpot(this.getStrollSpot(), this.name);
   }
 
   getStrollSpot(): StrollSpot {
@@ -43,14 +42,13 @@ export default class Group {
         (this.currStrollSpotIdx + offset) % this.strollSpots.length;
       const nextSpot = this.strollSpots[nextSpotIdx];
 
-      if (!this.scene.strollPark.isStrollSpotOccupied(nextSpot)) {
-        console.log("NEXT", nextSpotIdx)
-        this.scene.strollPark.unoccupyStrollSpot(
+      if (!this.play.strollPark.isStrollSpotOccupied(nextSpot)) {
+        this.play.strollPark.unoccupyStrollSpot(
           this.getStrollSpot(),
           this.name,
         );
         this.currStrollSpotIdx = nextSpotIdx;
-        this.scene.strollPark.occupyStrollSpot(this.getStrollSpot(), this.name);
+        this.play.strollPark.occupyStrollSpot(this.getStrollSpot(), this.name);
         return true;
       }
     }
@@ -59,15 +57,16 @@ export default class Group {
   }
 
   startWalk(leader: number): void {
-    if (this.scene.strollPark.isParkBlocked())
+    if (this.play.strollPark.isParkBlocked())
       throw new Error(
-        `Park is already blocked by: ${this.scene.strollPark.getBlockingPark()}`,
+        `Park is already blocked by: ${this.play.strollPark.getBlockingPark()}`,
       );
 
     const hasOccupiedNextStrollSpot = this.selectNextAvailableStrollSpot();
+
     if (!hasOccupiedNextStrollSpot) throw new Error(`No available strollpot`);
 
-    this.scene.strollPark.blockPark(this.name);
+    this.play.strollPark.blockPark(this.name);
 
     this.walk = {
       isWalking: true,
@@ -76,7 +75,7 @@ export default class Group {
   }
 
   stopWalk(): void {
-    this.scene.strollPark.unblockPark(this.name);
+    this.play.strollPark.unblockPark(this.name);
     this.walk = { isWalking: false };
   }
 

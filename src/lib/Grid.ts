@@ -4,7 +4,7 @@ import type { Cell, Vec2 } from "./types";
 import { posToCell } from "./utils";
 
 type OccupiedTileState = Map<string, { ground: GroundArea; sprite: number }>;
-type TempBlockedTileState = Map<string, {ground: GroundArea, sprite: number}>;
+type TempBlockedTileState = Map<string, { ground: GroundArea; sprite: number }>;
 
 export enum GroundArea {
   GRASS,
@@ -17,9 +17,8 @@ export enum GroundArea {
   POND,
   OCCUPIED,
   TEMP_BLOCK,
-  BRIDGE
+  BRIDGE,
 }
-
 
 export default class Grid {
   private grid: GroundArea[][];
@@ -90,12 +89,11 @@ export default class Grid {
       throw new Error("Grid is uninitialized!");
 
     if (!this.isWithinGridBounds(tile.row, tile.col))
-      throw new Error("Out of bounds");
+      throw new Error(`Tile out of bounds: ${tile.row}:${tile.col}`);
 
-    const groundTile = this.grid[tile.row][tile.col];
+    const groundTile = this.getGround(tile);
 
     return (
-      groundTile !== undefined &&
       walkableTiles.includes(groundTile) &&
       !this.isTileOccupied(tile)
     );
@@ -119,10 +117,13 @@ export default class Grid {
     const key = this.getTileKey({ row, col });
 
     if (this.tempBlockedTileState.has(key)) {
-       throw new Error(`Tile is  already temporary blocked ${row}:${col}`);
+      throw new Error(`Tile is  already temporary blocked ${row}:${col}`);
     }
 
-    this.tempBlockedTileState.set(key, {ground: this.grid[row][col], sprite: id});
+    this.tempBlockedTileState.set(key, {
+      ground: this.grid[row][col],
+      sprite: id,
+    });
 
     this.grid[row][col] = GroundArea.TEMP_BLOCK;
   }
@@ -132,7 +133,8 @@ export default class Grid {
     const key = this.getTileKey({ row, col });
     const state = this.tempBlockedTileState.get(key);
 
-    if (state === undefined) throw new Error("This tile is not temporary blocked");
+    if (state === undefined)
+      throw new Error("This tile is not temporary blocked");
     if (state.sprite !== id)
       throw new Error(`Tile is temporary blocked by other sprite`);
 
@@ -157,7 +159,6 @@ export default class Grid {
   }
 
   unoccupyTile(id: number, pos: Vec2, cooldown?: number): void {
-  
     const { row, col } = this.getGridCellFromPos(pos);
 
     const key = this.getTileKey({ row, col });
@@ -182,7 +183,8 @@ export default class Grid {
   private getGridCellFromPos(pos: Vec2): Cell {
     const tile = posToCell(pos, this.scene.art.tileSize);
     // console.dir(tile);
-    if(tile.row % 1 !== 0 || tile.col % 1 !== 0) throw new Error("Not a whole tile");
+    if (tile.row % 1 !== 0 || tile.col % 1 !== 0)
+      throw new Error("Not a whole tile");
     if (
       tile.row < 0 ||
       tile.row >= this.grid.length ||

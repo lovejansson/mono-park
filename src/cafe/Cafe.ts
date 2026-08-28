@@ -1,12 +1,115 @@
-import {  type Vec2 } from "../lib";
+import { type Vec2 } from "../lib";
 import House, { Door } from "./House";
 import type Play from "../Play";
 import OrdersManager from "./orders";
 import Table from "./Table";
+import {  TEN_SECONDS } from "../Timer";
+
+enum GuestsOrderState {
+  ARRIVING,
+  TAKE_ORDER,
+  PENDING_ORDER,
+  SERVED,
+}
+
+class Guests {
+  private guests: { guest: number; hasArrived: boolean; hasEaten: boolean }[];
+  private state: GuestsOrderState;
+
+  constructor(guests: number[]) {
+    this.guests = guests.map((g) => ({
+      guest: g,
+      hasArrived: false,
+      hasEaten: false,
+    }));
+    this.state = GuestsOrderState.ARRIVING;
+  }
+
+  getState(): GuestsOrderState {
+    return this.state;
+  }
+
+  updateState(newState: GuestsOrderState): void {
+    
+    switch (newState) {
+      case GuestsOrderState.ARRIVING:
+        throw new Error(
+          "Arriving is the initial state. It is set at creation.",
+        );
+        break
+      case GuestsOrderState.TAKE_ORDER:
+      
+        if (
+          !(
+            this.state === GuestsOrderState.ARRIVING ||
+            this.state === GuestsOrderState.SERVED
+          )
+        )
+          // Added served since they order again sometimes
+          throw new Error(
+            `Invalid state transition for Guests: ${this.state} -> ${newState}`,
+          );
+       
+        if (!this.allHasArrived())
+          throw new Error("Can't take order until all has arrived.");
+
+        if (this.state === GuestsOrderState.SERVED) {
+      
+          for (const g of this.guests) {
+            g.hasEaten = false;
+          }
+        }
+  
+        this.state = GuestsOrderState.TAKE_ORDER;
+        break;
+      case GuestsOrderState.PENDING_ORDER:
+        if (this.state !== GuestsOrderState.TAKE_ORDER)
+          throw new Error(
+            `Invalid state transition for Guests: ${this.state} -> ${newState}`,
+          );
+        this.state = GuestsOrderState.PENDING_ORDER;
+        break;
+      case GuestsOrderState.SERVED:
+        if (this.state !== GuestsOrderState.PENDING_ORDER)
+          throw new Error(
+            `Invalid state transition for Guests: ${this.state} -> ${newState}`,
+          );
+        this.state = GuestsOrderState.SERVED;
+        break;
+    }
+  }
+
+  allHasEaten(): boolean {
+    return this.guests.every((g) => g.hasEaten);
+  }
+
+  allHasArrived(): boolean {
+    return this.guests.every((g) => g.hasArrived);
+  }
+
+  setGuestHasEaten(guest: number): void {
+    const g = this.guests.find((g) => g.guest === guest);
+
+    if (g === undefined) throw new Error("Guest not found!");
+
+    g.hasEaten = true;
+  }
+
+  setGuestArrived(guest: number): void {
+    const g = this.guests.find((g) => g.guest === guest);
+
+    if (g === undefined) throw new Error("Guest not found!");
+
+    g.hasArrived = true;
+  }
+}
 
 export default class Cafe extends House {
   private play: Play;
-  private orders: OrdersManager;
+  orders: OrdersManager;
+  private tables: Table[];
+  private reservedTables: Map<number, string | null>;
+  private guests: Map<string, Guests>;
 
   constructor(
     scene: Play,
@@ -15,91 +118,150 @@ export default class Cafe extends House {
     height: number,
     image: string,
     door: Door,
+    tables: Table[],
   ) {
     super(scene, pos, width, height, image, door);
     this.play = scene;
     this.orders = new OrdersManager();
+    this.tables = tables;
+    this.reservedTables = new Map();
+
+    this.guests = new Map();
   }
 
-  placeOrder(table: Table) {
-    this.orders.add({ pos: table.pos, tableId: table.id });
+  init() {
+    for (const t of this.tables) {
+      this.reservedTables.set(t.id, null);
+    }
   }
 
-  getOrder() {
-    return this.orders.next();
+  placeOrder(guests: string) {
+    const table = this.getTable(guests);
+
+    setTimeout(() => {
+      this.orders.order(table, guests);
+    }, TEN_SECONDS);
+
+    const guestsState = this.getGuestsState(guests);
+    guestsState.updateState(GuestsOrderState.PENDING_ORDER);
   }
 
-  serveOrder(tableId: number) {
-    this.orders.serve(tableId);
+  hasBeenServed(guests: string): boolean {
+    const guestsState = this.getGuestsState(guests);
+    return guestsState.getState() === GuestsOrderState.SERVED;
   }
 
-  getServedOrder(tableId: number) {
-    return this.orders.nextServed(tableId);
+  allHasEaten(guests: string): boolean {
+    const guestsState = this.getGuestsState(guests);
+    return guestsState.allHasEaten();
   }
 
-  hasAvailableTables() {
-    return this.play.tables.hasAvailableTables(this.image);
+  hasEaten(guests: string, guest: number): void {
+    const guestsState = this.getGuestsState(guests);
+    guestsState.setGuestHasEaten(guest);
   }
 
-  arrive() {
-    if (!this.hasAvailableTables())
-      throw new Error("Restaurant has no available tables.");
-    const table = this.play.tables.reserveTable(this.image);
-    return table;
+  takeOrder(guests: string): void {
+    const guestsState = this.getGuestsState(guests);
+    guestsState.updateState(GuestsOrderState.TAKE_ORDER);
+    const table = this.getTable(guests);
+    setTimeout(() => {
+      this.orders.takeOrder(table, guests);
+    }, TEN_SECONDS);
   }
 
-  leave(tableID: number) {
-    this.play.tables.leaveTable(tableID);
+  isTakingOrder(guests: string): boolean {
+    const guestsState = this.getGuestsState(guests);
+    return guestsState.getState() === GuestsOrderState.TAKE_ORDER;
   }
-}
+  arrive(guests: string, guest: number): void {
+    const guestsState = this.getGuestsState(guests);
 
-export class Tables {
-  private tables: { table: Table; isFree: boolean }[];
+    guestsState.setGuestArrived(guest);
 
-  constructor(tables: Table[]) {
-    this.tables = tables.map((t) => ({ table: t, isFree: true }));
+    if (guestsState.allHasArrived()) {
+   
+      guestsState.updateState(GuestsOrderState.TAKE_ORDER);
+      const table = this.getTable(guests);
+      setTimeout(() => {
+        this.orders.takeOrder(table, guests);
+      }, TEN_SECONDS);
+    }
+  }
+
+  serveOrder(guests: string): void {
+    const guestsState = this.getGuestsState(guests);
+    guestsState.updateState(GuestsOrderState.SERVED);
+  }
+
+  private getGuestsState(guests: string): Guests {
+    const guestsState = this.guests.get(guests);
+
+    if (guestsState === undefined) throw new Error("Guests not at cafe!");
+
+    return guestsState;
   }
 
   getTables() {
-    return this.tables.map(t => t.table);
+    return this.tables;
   }
 
-  hasAvailableTables(restaurant: string): boolean {
+  hasAvailableTables(): boolean {
     return (
-      this.tables.find(
-        (t) =>
-          t.table.restaurants.find((r) => r === restaurant) !== undefined &&
-          t.isFree,
-      ) !== undefined
+      this.tables.find((t) => this.reservedTables.get(t.id) === null) !==
+      undefined
     );
   }
 
-  reserveTable(restaurant: string): Table {
+  reserveTable(guests: string, individualGuests: number[]): Table {
     const table = this.tables.find(
-      (t) =>
-        t.table.restaurants.find((r) => r === restaurant) !== undefined &&
-        t.isFree,
+      (t) => this.reservedTables.get(t.id) === null,
     );
 
-    if (table === undefined)
-      throw new Error("Restaurant has no available tables.");
+    if (table === undefined) throw new Error("Café has no available tables.");
 
-    table.isFree = false;
+    this.reservedTables.set(table.id, guests);
 
-    return table.table;
+    this.guests.set(guests, new Guests(individualGuests));
+
+    return table;
   }
 
-  leaveTable(tableID: number): void {
-    const table = this.tables.find((t) => t.table.id === tableID);
+  hasTableReservation(guests: string): boolean {
+    for (const [t, g] of this.reservedTables) {
+      if (g === guests) return true;
+    }
 
-    if (table === undefined) throw new Error("Table not found");
-
-    table.isFree = true;
+    return false;
   }
 
-  getTable(tableID: number): Table {
-    const table = this.tables.find((t) => t.table.id === tableID);
-    if (table === undefined) throw new Error("Table not found");
-    return table.table;
+  leaveTable(tableID: number, guests: string): void {
+    const isValidTable =
+      this.tables.find((t) => t.id === tableID) !== undefined;
+    if (!isValidTable) throw new Error("Table is not found!");
+
+    const reservation = this.reservedTables.get(tableID);
+
+    if (reservation !== guests)
+      throw new Error(
+        `Table is not reserved by ${guests}, state: ${reservation}`,
+      );
+
+    this.reservedTables.set(tableID, null);
+  }
+
+  getTable(guests: string): Table {
+  
+    for (const [t, g] of this.reservedTables) {
+      if (guests === g) {
+        const table = this.tables.find((t2) => t2.id === t);
+
+        if (table === undefined)
+          throw new Error("Table reservation not found.");
+
+        return table;
+      }
+    }
+    throw new Error("Table reservation not found");
   }
 }

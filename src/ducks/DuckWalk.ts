@@ -35,6 +35,9 @@ export class DuckWalk implements DuckWalkUpdatable {
   }
 
   update(dt: number): void {
+
+    this.timer.update(dt);
+
     if (this.currAction === null)
       throw new Error(`State ${this.tag} not initialized`);
 
@@ -83,8 +86,8 @@ export class RandomWalk implements DuckWalkUpdatable {
     this.duck = duck;
     this.minCol = 0;
     this.maxCol = 7;
-    this.minRow = 0;
-    this.maxRow = duck.scene.art!.height / duck.scene.art!.tileSize - 1;
+    this.minRow = 1;
+    this.maxRow = duck.scene.art!.height / duck.scene.art!.tileSize - 2;
     this.numTilesInSameDir = 0;
     this.isBlocked = false;
     this.currPosStart = { ...this.duck.pos };
@@ -517,10 +520,16 @@ export class RandomWalk implements DuckWalkUpdatable {
 
     if (!this.isWithinBounds(row, col)) return false;
 
-    return this.duck.scene.grid.isTileWalkable({ row, col }, [
-      GroundArea.POND,
-      GroundArea.GRASS,
-    ]);
+    try {
+      const isWalkable = this.duck.scene.grid.isTileWalkable({ row, col }, [
+        GroundArea.POND,
+        GroundArea.GRASS,
+      ]);
+      return isWalkable;
+    } catch (e) {
+      console.log("Error isTileWalkable", e, row, col);
+      return false;
+    }
   }
 }
 
@@ -551,7 +560,10 @@ export class SittingDuck implements DuckWalkUpdatable {
     }
   }
 
-  update(_: number): void {}
+  update(dt: number): void {
+     this.timer.update(dt);
+
+  }
 
   isComplete(): boolean {
     return this.timer.isStopped;

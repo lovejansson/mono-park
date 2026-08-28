@@ -1,21 +1,28 @@
 export default class Timer {
-  isStopped: boolean;
+    private elapsed = 0;
+    private duration = 0;
+    private isRunning = false;
 
-  constructor() {
-    this.isStopped = false;
-  }
+    start(duration: number) {
+        this.duration = duration;
+        this.elapsed = 0;
+        this.isRunning = true;
+    }
 
-  stop() {
-    this.isStopped = true;
-  }
+    update(dt: number) {
+        if (!this.isRunning) return;
 
-  start(ms: number) {
-    setTimeout(() => {
-      this.isStopped = true;
-    }, ms);
-  }
+        this.elapsed += dt;
+
+        if (this.elapsed >= this.duration) {
+            this.isRunning = false;
+        }
+    }
+
+    get isStopped() {
+        return !this.isRunning;
+    }
 }
-
 export const ONE_MINUTE = 1000 * 60;
 export const FIVE_MINUTES = 1000 * 60 * 5;
 export const TEN_MINUTES = 1000 * 60 * 10;

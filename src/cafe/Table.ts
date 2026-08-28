@@ -1,9 +1,10 @@
-import { StaticImage, type Direction, type Vec2 } from "../lib";
+import { ArtObject, StaticImage, type Direction, type Vec2 } from "../lib";
 import type Play from "../Play";
 
 export default class Table extends StaticImage {
-  seats: { pos: Vec2; direction: Direction }[];
-  restaurants: string[];
+  private seats: Seat[];
+  private guestSeats: Map<number, number | null>;
+  private play: Play;
 
   constructor(
     scene: Play,
@@ -11,31 +12,54 @@ export default class Table extends StaticImage {
     width: number,
     height: number,
     image: string,
-    seats: { pos: Vec2; direction: Direction }[],
-    restaurants: string[],
+    seats: Seat[],
   ) {
     super(scene, pos, width, height, image);
+    this.play = scene;
     this.seats = seats;
-    this.restaurants = restaurants;
+    this.guestSeats = new Map();
   }
 
-  getSeat(): { pos: Vec2; direction: Direction } {
-    return this.seats[0]; // randomEl(this.seats)!;
+  init(): void {
+    for (const s of this.seats) {
+      this.guestSeats.set(s.id, null);
+    }
   }
 
-  getArrivePos(
-    currentPos: Vec2,
-    seat: { pos: Vec2; direction: Direction },
-    tileSize: number,
-  ): Vec2 {
+  getSeat(guest: number, wish: Direction): Seat {
+    const freeSeat = this.seats.find(
+      (s) => s.direction === wish && this.guestSeats.get(s.id) === null,
+    );
+
+    if (freeSeat === undefined) throw new Error("No seat available for guest.");
+
+    this.guestSeats.set(freeSeat.id, guest);
+
+    return freeSeat;
+  }
+
+  leaveSeat(guest: number, seat: number): void {
+    const isValidSeat = this.seats.find((s) => s.id === seat) !== undefined;
+
+    if (!isValidSeat) throw new Error("Seat is not at this table.");
+
+    const guestAtSeat = this.guestSeats.get(seat);
+
+    if (guestAtSeat !== guest)
+      throw new Error(`Guest is not seated here, state: ${guestAtSeat}`);
+
+    this.guestSeats.set(seat, null);
+  }
+
+  getArrivePos(currentPos: Vec2, seat: Seat): Vec2 {
     switch (seat.direction) {
       case "n":
       case "s": {
         const useWestSide = currentPos.x < seat.pos.x;
         return {
           x: useWestSide
-            ? seat.pos.x - tileSize * 2
-            : seat.pos.x + tileSize * 2,
+            ? seat.pos.x - this.play.tileSize * 2
+            : seat.pos.x + this.play.tileSize * 2,
           y: seat.pos.y,
         };
       }
@@ -45,8 +69,8 @@ export default class Table extends StaticImage {
         return {
           x: seat.pos.x,
           y: useNorthSide
-            ? seat.pos.y - tileSize * 2
-            : seat.pos.y + tileSize * 2,
+            ? seat.pos.y - this.play.tileSize * 2
+            : seat.pos.y + this.play.tileSize * 2,
         };
       }
       default:
@@ -54,33 +78,62 @@ export default class Table extends StaticImage {
     }
   }
 
-  getClosestCornerPos(currentPos: Vec2, tileSize: number): Vec2 {
-    // if (this.image !== "round-table") {
-    //   throw new Error(
-    //     "Table.getClosestCornerPos is currently only implemented for round-table",
-    //   );
-    // }
-
+  getClosestCornerPos(currentPos: Vec2): Vec2 {
     const corners = [
-      { x: this.pos.x - tileSize, y: this.pos.y - tileSize },
-      { x: this.pos.x + tileSize * 2, y: this.pos.y - tileSize },
-      { x: this.pos.x + tileSize * 2, y: this.pos.y + tileSize },
-      { x: this.pos.x - tileSize, y: this.pos.y + tileSize },
+      {
+        x: this.pos.x - this.play.tileSize,
+        y: this.pos.y,
+      },
+      {
+        x: this.pos.x + this.play.tileSize * 3,
+        y: this.pos.y,
+      },
+      {
+        x: this.pos.x + this.play.tileSize * 3,
+        y: this.pos.y + this.play.tileSize,
+      },
+      {
+        x: this.pos.x - this.play.tileSize,
+        y: this.pos.y + this.play.tileSize,
+      },
     ];
 
     let closest = corners[0];
-    let minDistSq = Number.POSITIVE_INFINITY;
+    let minDist = Number.POSITIVE_INFINITY;
 
     for (const corner of corners) {
       const dx = corner.x - currentPos.x;
       const dy = corner.y - currentPos.y;
-      const distSq = dx * dx + dy * dy;
-      if (distSq < minDistSq) {
-        minDistSq = distSq;
+      const dist = dx * dx + dy * dy;
+      if (dist < minDist) {
+        minDist = dist;
         closest = corner;
       }
     }
 
     return closest;
+  }
+}
+
+export class Seat extends ArtObject {
+  direction: Direction;
+  constructor(scene: Play, pos: Vec2, direction: Direction) {
+    super(scene, pos);
+    this.direction = direction;
+  }
+
+  getSeatedDirection(): Direction {
+    switch (this.direction) {
+      case "n":
+        return "s";
+      case "e":
+        return "w";
+      case "s":
+        return "n";
+      case "w":
+        return "e";
+    }
+
+    throw new Error("Invalid direction!");
   }
 }

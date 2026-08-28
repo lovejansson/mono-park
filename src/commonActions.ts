@@ -122,6 +122,7 @@ export class GoTo implements CommonUpdatable {
     const scene = this.human.scene as Play;
 
     if (this.startDelay > 0) {
+      this.delayTimer.update(dt);
       if (this.delayTimer.isStopped) {
         this.startDelay = 0;
         if (this.startAlignSeq !== null) {
@@ -237,7 +238,6 @@ export class GoTo implements CommonUpdatable {
       return;
     }
 
-
     // Unoccupy goal tile if its already blocked by us?
     const goalTile = posToCell(this.pathGoalPos, scene.art.tileSize);
 
@@ -251,7 +251,6 @@ export class GoTo implements CommonUpdatable {
     }
 
     if (this.preBlockTiles) {
-  
       for (const p of this.preBlockTiles) {
         this.human.scene.grid.blockTile(this.human.id, p);
       }
@@ -261,7 +260,6 @@ export class GoTo implements CommonUpdatable {
     this.path.start();
 
     if (this.preBlockTiles) {
-  
       for (const p of this.preBlockTiles) {
         this.human.scene.grid.unBlockTile(this.human.id, p);
       }
@@ -337,7 +335,8 @@ export class StandIdle implements CommonUpdatable {
     }
   }
 
-  update(_: number): void {
+  update(dt: number): void {
+    this.timer.update(dt);
     if (!this.human.animations.isPlaying(`idle-stand-${this.direction}`)) {
       this.human.direction = this.direction;
       this.human.animations.play(`idle-stand-${this.direction}`);
@@ -394,6 +393,9 @@ export class SittingOnBench implements CommonUpdatable {
   }
 
   update(dt: number): void {
+ 
+    if (this.timer !== null ) this.timer.update(dt);
+
     if (this.animSeqStandUp?.hasStarted()) {
       if (this.animSeqStandUp.isFinished) {
         this.animSeqStandUp.finish();
@@ -462,7 +464,10 @@ export class SitOnGrass implements CommonUpdatable {
     }
   }
 
-  update(_: number): void {
+  update(dt: number): void {
+
+     if (this.timer !== null ) this.timer.update(dt);
+
     if (!this.human.animations.isPlaying(`idle-sit-${this.direction}`)) {
       this.human.direction = this.direction;
       this.human.animations.play(`idle-sit-${this.direction}`);

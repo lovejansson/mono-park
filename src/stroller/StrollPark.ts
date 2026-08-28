@@ -75,8 +75,6 @@ export default class StrollPark {
         !this.play.grid.isTileOccupied(posToCell(p.pos, this.play.tileSize)),
     );
 
-    console.log(spotPos);
-
     if (spotPos === undefined)
       throw new Error("No free position found for stroll spot!");
 

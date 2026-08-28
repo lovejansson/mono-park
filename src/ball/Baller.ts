@@ -1,4 +1,3 @@
-import Fika from "../cafe/Fika";
 import type Group from "../Group";
 import Human from "../Human";
 import { randomEl } from "../lib";
@@ -32,6 +31,7 @@ export default class Baller extends Human {
   }
 
   init(): void {
+    
     super.init();
 
     this.animations.registerSpritesheet(`${this.name}-baller`);
@@ -61,9 +61,6 @@ export default class Baller extends Human {
 
     if (this.currentAction.isComplete()) {
       switch (this.currentAction.tag) {
-        case Fika.TAG:
-          this.transitionToAction(PlayBall.TAG, this, this.game);
-          break;
         case PlayBall.TAG:
           this.transitionToAction(Chillin.TAG, this, this.game);
           break;

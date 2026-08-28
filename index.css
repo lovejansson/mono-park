@@ -18,6 +18,16 @@ html {
   box-sizing: border-box;
 }
 
+@font-face {
+  font-family: "Tiny5";
+  src: url("/fonts/Tiny5/Tiny5-Regular.ttf");
+}
+
+@font-face {
+  font-family: "Source Code Pro";
+  src: url("/fonts/Source_Code_Pro/SourceCodePro-VariableFont_wght.ttf");
+}
+
 h1 {
   font-family: "Tiny5", monospace;
   font-size: 2.8rem;

@@ -1,3 +1,4 @@
+import type Play from "./Play";
 import {
   createAction,
   type ActionSpec,
@@ -6,10 +7,7 @@ import {
 } from "./actions";
 import type Group from "./Group";
 
-import { Sprite } from "./lib";
-import type { OverlayOptions } from "./lib";
-import type { Direction, Vec2 } from "./lib/types";
-import type Play from "./Play";
+import { Sprite, type Direction, type OverlayOptions, type Vec2 } from "./lib";
 
 export enum PositionUpdateType {
   VEL,
@@ -35,13 +33,11 @@ export default class Human extends Sprite {
   }
 
   init(): void {
-    this.animations.registerSpritesheet("foods");
+  
 
     this.animations.registerSpritesheet(`${this.name}-base`, {
       defaults: REPEAT_DEFAULTS,
     });
-
-    this.animations.play("idle-stand-" + this.direction);
 
     this.animations.onFrameChange = (anim: string) => {
       if (!(this.isOnActiveAnimationSequence() || this.isOnActivePath()))
@@ -83,10 +79,6 @@ export default class Human extends Sprite {
           break;
       }
     };
-  }
-
-  preUpdate(dt: number): void {
-    this.currentPath?.preUpdate(dt);
   }
 
   update(dt: number): void {
@@ -195,6 +187,22 @@ const AnimationSettings: Record<string, AnimationSetting> = {
     repeat: true,
   },
   "idle-stand-hold-e": {
+    positionUpdateType: PositionUpdateType.VEL,
+    repeat: true,
+  },
+  "eat-e": {
+    positionUpdateType: PositionUpdateType.VEL,
+    repeat: true,
+  },
+  "eat-n": {
+    positionUpdateType: PositionUpdateType.VEL,
+    repeat: true,
+  },
+  "eat-s": {
+    positionUpdateType: PositionUpdateType.VEL,
+    repeat: true,
+  },
+  "eat-w": {
     positionUpdateType: PositionUpdateType.VEL,
     repeat: true,
   },

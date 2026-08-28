@@ -5,13 +5,11 @@ import {
   type CommonActionSpec,
   type CommonUpdatable,
 } from "../commonActions.ts";
-
 import { GroundArea } from "../lib/Grid.ts";
 import Path from "../lib/Path.ts";
 import type { Direction, Vec2 } from "../lib/types.ts";
 import { isSamePos, randomEl, randomInt } from "../lib/utils.ts";
-import type Play from "../Play.ts";
-import Timer, { ONE_MINUTE, TEN_SECONDS, THREE_SECONDS } from "../Timer.ts";
+import Timer, {  TEN_SECONDS, THREE_SECONDS } from "../Timer.ts";
 import type Baller from "./Baller.ts";
 import type BallGame from "./BallGame.ts";
 
@@ -35,6 +33,7 @@ export default class PlayBall implements PlayBallUpdatable {
   }
 
   init() {
+    
     // The player has already entered the game here so we either they either have to go to the position or is already there.
 
     if (this.initPos !== undefined) {
@@ -63,6 +62,9 @@ export default class PlayBall implements PlayBallUpdatable {
   }
 
   update(dt: number): void {
+
+     if (this.timer !== null ) this.timer.update(dt);
+
     if (this.currAction === null)
       throw new Error(`State ${PlayBall.TAG} not initialized! Call init().`);
 
@@ -216,7 +218,9 @@ class Pass implements PlayBallUpdatable {
     this.baller.animations.play(`idle-stand-${this.passDirection}`);
   }
 
-  update(_: number): void {
+  update(dt: number): void {
+     if (this.timer !== null ) this.timer.update(dt);
+
     if (this.timer.isStopped && !this.hasTriggeredPass) {
       this.baller.animations.play(`shoot-${this.passDirection}`);
       this.game.pass(this.game.getPlayerToPassTo(this.baller.id));

@@ -32,18 +32,16 @@ export default class Stroll implements StrollUpdatable {
   }
 
   init() {
-
     this.strollSpot = this.human.group.getStrollSpot();
-   
+
     this.spotPos = this.play.strollPark.getStrollPos(this.strollSpot);
-  
+
     this.play.grid.occupyTile(this.human.id, this.spotPos.pos);
 
     this.human.pos.y = this.spotPos.pos.y;
     this.human.pos.x = this.spotPos.pos.x;
 
     switch (this.strollSpot) {
-
       case StrollSpot.BRIDGE:
         this.transitionToAction(
           StandIdle.TAG,
@@ -100,7 +98,6 @@ export default class Stroll implements StrollUpdatable {
     this.currAction.update(dt);
 
     if (this.human.group.isWalking() && this.currAction.tag !== GoTo.TAG) {
-      
       this.strollSpot = this.human.group.getStrollSpot();
       this.spotPos = this.play.strollPark.getStrollPos(this.strollSpot);
 
@@ -113,8 +110,6 @@ export default class Stroll implements StrollUpdatable {
       const spotPositions = this.play.strollPark
         .getSpotPositions(this.strollSpot)
         .filter((p) => !isSamePos(p, this.spotPos.pos));
-
-    
 
       this.transitionToAction(
         GoTo.TAG,
@@ -130,16 +125,12 @@ export default class Stroll implements StrollUpdatable {
     if (this.currAction.isComplete()) {
       switch (this.currAction.tag) {
         case GoTo.TAG:
-          if (
-            this.human.group.isWalking()
-          ) {
-          
+          if (this.human.group.isWalking()) {
             this.human.group.stopWalk();
           }
 
           switch (this.strollSpot) {
-             case StrollSpot.BRIDGE:
-             
+            case StrollSpot.BRIDGE:
               this.transitionToAction(
                 StandIdle.TAG,
                 this.human,
@@ -195,7 +186,6 @@ export default class Stroll implements StrollUpdatable {
             !this.human.group.isWalking() &&
             !this.play.strollPark.isParkBlocked()
           ) {
-            console.log("DONE WITH STANDING")
             this.human.group.startWalk(this.human.id);
             this.strollSpot = this.human.group.getStrollSpot();
 

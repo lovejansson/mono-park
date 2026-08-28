@@ -1,38 +1,52 @@
-import type { Vec2 } from "../lib";
+import type Table from "./Table";
 
+export enum OrderEventType {
+  TAKE,
+  SERVE,
+}
 export type OrderEvent = {
-  tableId: number;
-  pos: Vec2;
+  type: OrderEventType;
+  table: Table;
+  guests: string;
 };
 
-type ServedEvent = {
-  tableId: number;
-};
-
+/**
+ * A manager to create and listen for orders or guests arriving to the café!
+ */
 export default class OrdersManager {
-  private pending: OrderEvent[];
-  private served: ServedEvent[];
+  private takeOrders: OrderEvent[];
+  private pendingOrders: OrderEvent[];
 
   constructor() {
-    this.pending = [];
-    this.served = [];
+    this.takeOrders = [];
+    this.pendingOrders = [];
   }
 
-  add(event: OrderEvent) {
-    this.pending.push(event);
+  /**
+   * Guests are calling arrive to notify waiter to take their order.
+   */
+  takeOrder(table: Table, guests: string): void {
+    this.takeOrders.push({ type: OrderEventType.TAKE, table, guests });
   }
 
-  next(): OrderEvent | null {
-    return this.pending.shift() ?? null;
+  /**
+   * Waiters are checking if any guests like to order something.
+   */
+  nextTakeOrder(): OrderEvent | null {
+    return this.takeOrders.shift() ?? null;
   }
 
-  serve(tableId: number) {
-    this.served.push({ tableId });
+  /**
+   * Guests actually place an order.
+   */
+  order(table: Table, guests: string): void {
+    this.takeOrders.push({ type: OrderEventType.SERVE, table, guests });
   }
 
-  nextServed(tableId: number): ServedEvent | null {
-    const idx = this.served.findIndex((e) => e.tableId === tableId);
-    if (idx === -1) return null;
-    return this.served.splice(idx, 1)[0];
+  /**
+   * Waiters are checking if an order is ready to be served.
+   */
+  nextPendingOrder(): OrderEvent | null {
+    return this.pendingOrders.shift() ?? null;
   }
 }

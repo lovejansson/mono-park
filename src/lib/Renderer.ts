@@ -17,6 +17,8 @@ export default class Renderer {
   private elapsedPrev: number;
   private playScene: Scene;
   private pauseScene?: Scene;
+  private isRunning: boolean;
+  private animationFrameID: number;
 
   constructor(art: Art, config: ArtConfig) {
     this.ctx = null; // Is set in init();
@@ -24,6 +26,8 @@ export default class Renderer {
     this.playScene = config.play;
     this.pauseScene = config.pause;
     this.elapsedPrev = 0;
+    this.isRunning = false;
+    this.animationFrameID = -1;
   }
 
   getImageData(): ImageData {
@@ -63,11 +67,38 @@ export default class Renderer {
     container.appendChild(canvas);
   }
 
+  start(): void {
+    if (this.isRunning) {
+      console.warn("Renderer is already running!");
+    }
+
+    this.isRunning = true;
+    this.elapsedPrev = 0;
+
+    this.animationFrameID = requestAnimationFrame((elapsed) =>
+      this.run(elapsed),
+    );
+  }
+
+  stop(): void {
+    this.isRunning = false;
+
+    if (this.animationFrameID !== -1) {
+      cancelAnimationFrame(this.animationFrameID);
+      this.animationFrameID = -1;
+    }
+  }
+
   run(elapsed: number = 0): void {
+    if (!this.isRunning) throw new Error("Renderer is not started");
     try {
       if (this.ctx === null) throw new RendererUnInitialized();
 
-      const dt = elapsed - this.elapsedPrev;
+      let dt = elapsed - this.elapsedPrev;
+      // If the tab is in the background the browser will throttle or pause this RAF function so set the delta to something normal here.
+      if (dt > 500) {
+        dt = 16;
+      }
 
       const currentTransform = this.ctx.getTransform();
       this.ctx.clearRect(
@@ -85,7 +116,6 @@ export default class Renderer {
        */
 
       if (this.art.isPlaying) {
-        this.playScene.preUpdate(dt);
         this.updateSceneAnimations(this.playScene, dt);
         this.playScene.update(dt);
 
@@ -111,7 +141,6 @@ export default class Renderer {
         }
       } else {
         if (this.pauseScene !== undefined) {
-          this.pauseScene.preUpdate(dt);
           this.updateSceneAnimations(this.pauseScene, dt);
           this.pauseScene.update(dt);
 
@@ -120,7 +149,6 @@ export default class Renderer {
           // Draw play scene without the updates of it
 
           if (elapsed < 10) {
-            this.playScene.preUpdate(dt);
             this.updateSceneAnimations(this.playScene, dt);
             this.playScene.update(dt);
           }
@@ -138,14 +166,16 @@ export default class Renderer {
       }
 
       this.elapsedPrev = elapsed;
-      requestAnimationFrame((elapsed) => this.run(elapsed));
+      this.animationFrameID = requestAnimationFrame((elapsed) =>
+        this.run(elapsed),
+      );
     } catch (e) {
       if (this.art.startTime) {
         const { hours, minutes, seconds } = diffHMS(
           new Date(),
           this.art.startTime,
         );
-        this.art.audio.beep();
+        // this.art.audio.beep();
         console.log(`Time since start ${hours}:${minutes}:${seconds}`);
       }
 
@@ -219,7 +249,9 @@ export default class Renderer {
       this.ctx.drawImage(img, obj.pos.x, obj.pos.y);
       return;
     } else if (obj instanceof Sprite) {
-      obj.animations.draw(this.ctx);
+      if (obj.isVisible) {
+        obj.animations.draw(this.ctx);
+      }
     }
   }
 }

@@ -18,6 +18,7 @@ export default abstract class Sprite extends ArtObject {
 
   currentPath: Path | null;
   currentAnimationSequence: AnimationSequence | null;
+  isVisible: boolean;
 
   constructor(
     scene: Scene,
@@ -38,6 +39,7 @@ export default abstract class Sprite extends ArtObject {
 
     this.currentPath = null;
     this.currentAnimationSequence = null;
+    this.isVisible = true;
   }
 
   abstract update(dt: number): void;

@@ -34,9 +34,6 @@ import {
 } from "../commonActions.ts";
 import VendingMachine from "../VendingMachine.ts";
 
-/**
- *  Fixa renderings ordning och animerings fel
- */
 enum CruiseGoal {
   OBSTACLE,
   BENCH,
@@ -57,14 +54,16 @@ export default class Skate implements SkateUpdatable {
   private vendingMachine: VendingMachine | null;
   private play: Play;
   private cruiseGoal: CruiseGoal | null;
+  private initAction: SkateActionTag;
 
-  constructor(skater: Skater) {
+  constructor(skater: Skater, initAction: SkateActionTag) {
     this.skater = skater;
     this.skater.action = this.tag;
     this.tricks = tricks.slice(0, skater.skill - 1);
     this.obstacles = obstacles.filter((o) =>
       obstacleTricks[o].some((t1) => this.tricks.includes(t1)),
     );
+    this.initAction = initAction;
     this.currAction = null;
     this.obstacle = null;
     this.bench = null;
@@ -74,7 +73,7 @@ export default class Skate implements SkateUpdatable {
   }
 
   init() {
-    switch (this.skater.initAction) {
+    switch (this.initAction) {
       case SitOnBench.TAG: {
         if (!this.play.skateGround.hasFreeBenches())
           throw Error("Invalid initial state, not enough free benches");
@@ -509,6 +508,8 @@ export class RailObstacle implements SkateUpdatable {
     if (this.currAction === null)
       throw new Error(`State uninitialized ${this.tag}`);
 
+    this.timer.update(dt);
+
     this.currAction.update(dt);
 
     switch (this.currAction.tag) {
@@ -596,6 +597,7 @@ export class FlatObstacle implements SkateUpdatable {
       throw new Error("Animation sequence for Flat obstacle is null");
 
     this.animationSeq.update(dt);
+    this.timer.update(dt);
 
     if (this.animationSeq.isFinished) {
       this.animationSeq.finish();
@@ -1029,7 +1031,7 @@ export class BowlObstacle implements SkateUpdatable {
   update(dt: number): void {
     if (this.currAction === null)
       throw new Error(`State ${this.tag} is uninitialized`);
-
+    this.timer.update(dt);
     this.currAction.update(dt);
 
     switch (this.currAction.tag) {
@@ -1372,6 +1374,7 @@ class CruiseTo implements SkateUpdatable {
     this.skater.action = this.tag;
     this.play = this.skater.scene as Play;
     this.walkableTiles = walkableTiles ?? [GroundArea.SKATE_GROUND];
+
     if (isSamePos(this.skater.pos, to)) {
       this.path = null;
       this.animSeq = new AnimationSequence(
@@ -1400,9 +1403,18 @@ class CruiseTo implements SkateUpdatable {
       this.animSeq.start();
     } else {
       this.animSeq = null;
-      this.path = new Path(this.skater, to, this.walkableTiles);
 
-      this.path.start();
+      try {
+        this.path = new Path(this.skater, to, this.walkableTiles);
+
+        this.path.start();
+      } catch (e) {
+        console.log(e);
+        console.log("FAILED TO CREATE PATH FROM CRUISE TO!");
+
+        console.dir(this.skater.scene.grid.getGrid());
+        throw e;
+      }
 
       if (this.skater.direction === "e") {
         this.skater.animations.play(`cruise-b-${this.skater.direction}`);
@@ -1413,7 +1425,9 @@ class CruiseTo implements SkateUpdatable {
       }
     }
   }
+
   init() {}
+
   update(dt: number): void {
     if (this.animSeq !== null) {
       this.animSeq.update(dt);
@@ -1500,7 +1514,7 @@ class WaitingMyTurn implements SkateUpdatable {
     this.obstacle.standInLine(this.skater.id);
   }
 
-  update(_: number): void {
+  update(dt: number): void {
     if (
       !this.skater.animations.isPlaying(`idle-stand-${this.skater.direction}`)
     ) {
@@ -1508,6 +1522,8 @@ class WaitingMyTurn implements SkateUpdatable {
         overlays: [getBoardCarryOverlay(this.skater.direction, true)],
       });
     }
+
+    this.timer.update(dt);
 
     if (this.obstacle.isMyTurn(this.skater.id) && this.timer.isStopped) {
       this.obstacle.skate(this.skater.id);
@@ -1563,10 +1579,11 @@ export class VendingMachineShopping implements SkateUpdatable {
   init() {
     this.skater.direction = "n";
     this.animSeqApproach!.start();
-  
   }
 
   update(dt: number): void {
+    if (this.timer !== null) this.timer.update(dt);
+
     if (this.animSeqGoBack !== null && this.animSeqGoBack.hasStarted()) {
       this.animSeqGoBack.update(dt);
 
@@ -1578,7 +1595,7 @@ export class VendingMachineShopping implements SkateUpdatable {
         this.animSeqGoBack = null;
         this.isReadyToCruise = true;
       }
-      
+
       return;
     }
 

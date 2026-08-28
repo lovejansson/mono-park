@@ -1,4 +1,3 @@
-import { GoTo } from "../commonActions";
 import { randomEl, Sprite, type Direction, type Vec2 } from "../lib";
 import {
   easeOut,
@@ -198,6 +197,7 @@ export default class BallGame {
   }
 
   setPlayerWithBall(id: number): void {
+
     this.playerWithBall = id;
     const player = this.play.getBaller(id);
     const playerArea = this.playerAreas.find(

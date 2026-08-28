@@ -10,6 +10,7 @@ export default class SkateGround {
   private benches: Bench[];
   private vendingMachines: VendingMachine[];
   private grassIdlePositions: Vec2[];
+  private enterPositions: Vec2[];
   private blockingSkateGround: number | null;
   private play: Play;
 
@@ -35,9 +36,27 @@ export default class SkateGround {
       { x: 37 * this.play.tileSize, y: 10 * this.play.tileSize },
     ];
 
+    this.enterPositions = [
+      { x: 26 * this.play.tileSize, y: 6 * this.play.tileSize },
+      { x: 26 * this.play.tileSize, y: 7 * this.play.tileSize },
+      { x: 26 * this.play.tileSize, y: 8 * this.play.tileSize },
+      { x: 26 * this.play.tileSize, y: 9 * this.play.tileSize },
+      { x: 26 * this.play.tileSize, y: 10 * this.play.tileSize },
+    ];
+
     this.vendingMachines = vendingMachines;
 
     this.blockingSkateGround = null;
+  }
+
+  getEnterPos(): Vec2 {
+    const pos = this.enterPositions.find(
+      (p) => !this.play.grid.isTileOccupied(posToCell(p, this.play.tileSize)),
+    );
+
+    if (pos === undefined) throw new Error("No free enter pos found"); // Should not happen according to design
+
+    return pos;
   }
 
   isValidGrassIdlePos(pos: Vec2): boolean {

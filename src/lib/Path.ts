@@ -50,6 +50,8 @@ export default class Path {
       this.sprite.scene.art.tileSize,
     );
 
+    this.currStart = { ...this.sprite.pos };
+
     // Unoccupy start tile if it is a tile this sprite is standing on (TODO: can we avoid this).
     if (this.sprite.scene.grid.isTileOccupied(startTile)) {
       if (
@@ -61,7 +63,6 @@ export default class Path {
         throw new Error("Start tile of path is occupied by other sprite");
       }
     }
-    
 
     // Create the path
     this.path = createPathAStar(
@@ -95,21 +96,6 @@ export default class Path {
 
     this.updateVelocity();
     this.updateDirection();
-  }
-
-  preUpdate(_: number): void {
-    // const diff = getPosDiff(this.sprite.pos, this.currStart);
-    // const pixelDiff = Math.max(Math.abs(diff.x), Math.abs(diff.y));
-    // console.log("PREUPDATE PIXEL DIFF", pixelDiff, this.sprite.id);
-    // // Standing on current tile in path and about to advance to the next, check if it is ok
-    // if (pixelDiff === 0) {
-    //   console.log("PRE UPDATE", "0", this.currPathIdx, this.sprite.id);
-    //   this.sprite.scene.collisions.pushIntent(
-    //     this.sprite.id,
-    //     this.path[this.currPathIdx],
-    //     this.path[this.currPathIdx + 1],
-    //   );
-    // }
   }
 
   update(_: number): void {
@@ -159,6 +145,21 @@ export default class Path {
 
     if (this.currPathIdx === this.path.length - 1) {
       this.hasReachedGoal = true;
+      const tileSize = this.sprite.scene.art.tileSize;
+      if (
+        !(
+          this.sprite.pos.x % tileSize === 0 &&
+          this.sprite.pos.y % tileSize === 0
+        )
+      ) {
+        const endTile = posToCell(this.sprite.pos, tileSize);
+
+        console.log("PATH FINISHED BUT IT DRIFFTED?", {
+          pos: { ...this.sprite.pos },
+          tile: { ...endTile },
+          animation: this.sprite.animations.getPlaying(),
+        });
+      }
     } else {
       // Push intent to go to next tile
       this.sprite.scene.collisions.pushIntent(

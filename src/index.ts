@@ -108,7 +108,7 @@ async function main() {
       await syncUI();
 
       if(dialogError.open) {
-        console.log("OPEN=")
+    
         dialogError.close();
       }
 
@@ -152,6 +152,7 @@ async function main() {
         await exitFullscreen();
       });
     } catch (e) {
+      console.error(e);
       dialogError.showModal();
     }
   }

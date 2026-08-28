@@ -116,11 +116,11 @@ export default class Art {
     });
 
     try {
-      this.renderer.run();
+      this.renderer.start();
     } catch (e) {
       if (this.startTime) {
         const { hours, minutes, seconds } = diffHMS(new Date(), this.startTime);
-        this.audio.beep();
+        // this.audio.beep();
         console.log(`Time since start ${hours}:${minutes}:${seconds}`);
       }
 

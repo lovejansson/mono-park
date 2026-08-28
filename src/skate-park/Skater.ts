@@ -1,10 +1,9 @@
-import type { ActionTag } from "../actions.ts";
 import type Group from "../Group.ts";
 import Human, { PositionUpdateType, type AnimationSetting } from "../Human.ts";
 import type { OverlayOptions } from "../lib";
 import type { Direction, Vec2 } from "../lib/types";
 import type Play from "../Play.ts";
-import Skate from "./Skate.ts";
+import Skate, { type SkateActionTag } from "./Skate.ts";
 
 type Skill = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
@@ -17,14 +16,14 @@ export default class Skater extends Human {
   skill: Skill;
   obstacle: number | null;
   bench: number | null;
-  initAction: ActionTag;
+  initAction: SkateActionTag;
 
   constructor(
     scene: Play,
     pos: Vec2,
     name: string,
     skill: Skill,
-    initAction: ActionTag,
+    initAction: SkateActionTag,
     group: Group,
   ) {
     super(scene, pos, name, group);
@@ -59,7 +58,6 @@ export default class Skater extends Human {
       if (!(this.isOnActiveAnimationSequence() || this.isOnActivePath())) {
         return;
       }
-   
 
       const updateType = AnimationPositionUpdates[anim];
 
@@ -149,14 +147,10 @@ export default class Skater extends Human {
       // console.log("COMPLETE", animation);
     };
 
-    this.transitionToAction(Skate.TAG, this);
+    this.transitionToAction(Skate.TAG, this, this.initAction);
   }
 
   update(dt: number): void {
-    //   if(this.name === "love") {
-    //       console.log((this.scene as Play).isSkateGroundBlocked())
-    //     console.log("IS MY TURN?", this.action);
-    // }
     this.currentAction.update(dt);
   }
 }
