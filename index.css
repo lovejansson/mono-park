@@ -77,6 +77,33 @@ button:focus-visible {
   outline: 2px solid #f8eec0;
 }
 
+#div-loading {
+  width: 100%;
+  height: 100%;
+  background-color: #6a7a35;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+#div-loading .icon {
+  animation: spin 2s  infinite linear;
+  color: #f8eec0;
+
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 #window-header button {
   app-region: no-drag;
   color: #f8eec0;
@@ -107,7 +134,7 @@ body.fullscreen main {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 #dialog-error div {

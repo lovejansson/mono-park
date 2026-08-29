@@ -15,6 +15,7 @@ export type ArtConfig = {
   gridColor?: string;
   services?: Record<string, any>;
   scale?: "hd" | "4k";
+  loading?: string;
 };
 
 const CONTAINER_SELECTOR_DEFAULT = "#art-container";
@@ -83,9 +84,19 @@ export default class Art {
   }
 
   async init(): Promise<void> {
+
+    if(this.config.loading) {
+      const loadingEl = document.querySelector(this.config.loading);
+
+      if(loadingEl !== null) {
+         loadingEl.classList.remove("hidden");
+      }
+    }
+   
     this.startTime = new Date();
 
     this.config.play.art = this;
+
     await this.config.play.init();
 
     if (this.config.pause !== undefined) {
@@ -134,6 +145,14 @@ export default class Art {
       this.config.pause.start();
     } else {
       this.config.play.start();
+    }
+
+      if(this.config.loading) {
+      const loadingEl = document.querySelector(this.config.loading);
+
+      if(loadingEl !== null) {
+         loadingEl.classList.add("hidden");
+      }
     }
   }
 

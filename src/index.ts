@@ -41,6 +41,7 @@ const art = new Art({
   tileSize: tilemap.tileSize,
   container: "#art-container",
   displayGrid: true,
+  loading: "#div-loading",
 });
 
 const setFullscreenClass = (fullscreen: boolean) => {

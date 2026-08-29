@@ -169,7 +169,7 @@ export default class Play extends Scene {
     this.art.audio.add("ambience", "/sound/ambience.mp3");
 
     for (const t of this.playlist) {
-      this.art.audio.add(t, `/sound/playlist/${t}.webm`);
+      this.art.audio.add(t, `/sound/playlist/${t}.webm`, false);
     }
 
     await this.art.audio.load();
@@ -188,6 +188,7 @@ export default class Play extends Scene {
     );
 
     obstacles.push(flat);
+
     this.addObject(flat);
 
     this.grid.init(this.tilemap.rows, this.tilemap.cols);
@@ -315,8 +316,6 @@ export default class Play extends Scene {
     }
 
     this.grid.setTileValue(5, 2, GroundArea.NOT_WALKABLE); // QUICK FIX FOR SOME POND GRASS so that the ducks are not drawn on top of it...
-
-    console.dir(this.grid.getGrid());
 
     this.cafe.init();
 

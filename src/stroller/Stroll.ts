@@ -40,9 +40,11 @@ export default class Stroll implements StrollUpdatable {
 
     this.human.pos.y = this.spotPos.pos.y;
     this.human.pos.x = this.spotPos.pos.x;
+    this.human.direction = this.spotPos.direction;
 
     switch (this.strollSpot) {
       case StrollSpot.BRIDGE:
+        this.human.animations.play(`idle-stand-${this.human.direction}`);
         this.transitionToAction(
           StandIdle.TAG,
           this.human,
@@ -51,6 +53,7 @@ export default class Stroll implements StrollUpdatable {
         );
         break;
       case StrollSpot.CACTUSES:
+        this.human.animations.play(`idle-stand-${this.human.direction}`);
         this.transitionToAction(
           StandIdle.TAG,
           this.human,
@@ -59,6 +62,7 @@ export default class Stroll implements StrollUpdatable {
         );
         break;
       case StrollSpot.SKATE_GROUND:
+        this.human.animations.play(`idle-stand-${this.human.direction}`);
         this.transitionToAction(
           StandIdle.TAG,
           this.human,
@@ -67,6 +71,7 @@ export default class Stroll implements StrollUpdatable {
         );
         break;
       case StrollSpot.GRASS_BY_THE_POND:
+        this.human.animations.play(`idle-sit-${this.human.direction}`);
         this.transitionToAction(
           SitOnGrass.TAG,
           this.human,
@@ -81,6 +86,7 @@ export default class Stroll implements StrollUpdatable {
           throw new Error("Pond bench not found");
         }
 
+        this.human.animations.play("idle-stand-n");
         this.transitionToAction(
           SittingOnBench.TAG,
           this.human,

@@ -1,7 +1,18 @@
+type PreLoadedAudio = {
+  buffer: AudioBuffer;
+  isLoaded: true;
+};
+
+type NotPreLoadedAudio = {
+  buffer: null;
+  isLoaded: false;
+  path: string;
+};
+
 export default class AudioPlayer {
   onoff: boolean;
-  private sounds: Map<string, string>;
-  private buffers: Map<string, AudioBuffer>;
+  private sounds: Map<string, { path: string; preload: boolean }>;
+  private buffers: Map<string, PreLoadedAudio | NotPreLoadedAudio>;
 
   private playingAudioNodes: Map<
     string,
@@ -21,42 +32,54 @@ export default class AudioPlayer {
     this.muteNode.connect(this.audioCtx.destination);
   }
 
-  async add(id: string, path: string): Promise<void> {
-    this.sounds.set(id, path);
+  add(id: string, path: string, preload: boolean = true): void {
+    this.sounds.set(id, { path, preload });
   }
 
   async load(): Promise<void> {
-    const promises: Promise<void>[] = [];
+    const promises: Promise<PreLoadedAudio>[] = [];
 
-    for (const [id, path] of this.sounds) {
-      promises.push(
-        (async () => {
-          try {
-            const response = await fetch(path);
-            const arrayBuffer = await response.arrayBuffer();
-            const audioBuffer =
-              await this.audioCtx.decodeAudioData(arrayBuffer);
-            this.buffers.set(id, audioBuffer);
-          } catch (err: any) {
-            throw new AudioFetchError(path, err);
-          }
-        })(),
-      );
+    for (const [id, audio] of this.sounds) {
+      if (audio.preload) {
+        promises.push(this.loadAudio(id, audio.path));
+      } else {
+        this.buffers.set(id, {
+          buffer: null,
+          isLoaded: false,
+          path: audio.path,
+        });
+      }
     }
 
     await Promise.all(promises);
+
     this.sounds.clear();
+  }
+
+  private async loadAudio(id: string, path: string): Promise<PreLoadedAudio> {
+    try {
+      const response = await fetch(path);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+      const audio: PreLoadedAudio = { buffer: audioBuffer, isLoaded: true };
+      this.buffers.set(id, audio);
+      return audio;
+    } catch (err: any) {
+      throw new AudioFetchError(path, err);
+    }
   }
 
   isMuted(): boolean {
     return this.muteNode.gain.value === 0;
   }
+
   toggleSound(): void {
     this.muteNode.gain.value = this.isMuted() ? 1 : 0;
   }
 
   playlist(sounds: string[], volume: number = 1, loop = false): void {
-     if (!this.onoff) return;
+    if (!this.onoff) return;
+
     this.play(sounds[0], volume);
 
     const audio = this.playingAudioNodes.get(sounds[0]);
@@ -65,9 +88,8 @@ export default class AudioPlayer {
       throw new Error("Failed to start next playlist track");
 
     audio.source.addEventListener("ended", () => {
-       if (!this.onoff) return;
-        this.nextInPlaylist(sounds, 0, volume, loop);
-      
+      if (!this.onoff) return;
+      this.nextInPlaylist(sounds, 0, volume, loop);
     });
   }
 
@@ -77,7 +99,7 @@ export default class AudioPlayer {
     volume: number = 1,
     loop = false,
   ): void {
-     if (!this.onoff) return;
+    if (!this.onoff) return;
     if (currIdx === sounds.length - 1) {
       if (loop) {
         currIdx = 0;
@@ -100,20 +122,28 @@ export default class AudioPlayer {
     });
   }
 
-  play(id: string, volume: number = 1, loop = false): void {
+  async play(id: string, volume: number = 1, loop = false): Promise<void> {
     if (!this.onoff) throw new AudioPlayerOffStateError("play");
 
     if (this.playingAudioNodes.has(id)) return;
 
-    // if (this.audioCtx.state === "suspended") {
-    //   throw new Error("Audio context suspended")
-    // }
+    if (this.audioCtx.state === "suspended") {
+      console.error("Audio context suspended");
+    }
 
-    const audioBuffer = this.buffers.get(id);
-    if (audioBuffer === undefined) throw new AudioNotFoundError(id);
+    const audio = this.buffers.get(id);
+    if (audio === undefined) throw new AudioNotFoundError(id);
 
     const audioSource = this.audioCtx.createBufferSource();
-    audioSource.buffer = audioBuffer;
+
+    if (audio.isLoaded) {
+      audioSource.buffer = audio.buffer;
+    } else {
+      this.buffers.delete(id);
+      const loadedAudio = await this.loadAudio(id, audio.path);
+      audioSource.buffer = loadedAudio.buffer;
+    }
+
     audioSource.loop = loop;
 
     const volumeNode = this.audioCtx.createGain();

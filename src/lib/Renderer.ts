@@ -143,12 +143,10 @@ export default class Renderer {
         if (this.pauseScene !== undefined) {
           this.updateSceneAnimations(this.pauseScene, dt);
           this.pauseScene.update(dt);
-
           this.drawSceneCanvasObjects(this.pauseScene);
         } else {
-          // Draw play scene without the updates of it
-
-          if (elapsed < 10) {
+          // Just update alittle to get the ball running!
+          if (elapsed < 100) {
             this.updateSceneAnimations(this.playScene, dt);
             this.playScene.update(dt);
           }
