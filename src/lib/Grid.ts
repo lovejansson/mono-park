@@ -1,7 +1,7 @@
-import { createGrid, getRandomFreeCell } from "../grid";
+import { createGrid, getRandomFreeTile } from "../grid";
 import type Scene from "./Scene";
-import type { Cell, Vec2 } from "./types";
-import { posToCell } from "./utils";
+import type { Tile, Vec2 } from "./types";
+import { posToTile } from "./utils";
 
 type OccupiedTileState = Map<string, { ground: GroundArea; sprite: number }>;
 type TempBlockedTileState = Map<string, { ground: GroundArea; sprite: number }>;
@@ -52,7 +52,7 @@ export default class Grid {
     return this.grid;
   }
 
-  getGround(tile: Cell): GroundArea {
+  getGround(tile: Tile): GroundArea {
     if (this.isActive && this.grid.length === 0)
       throw new Error("Grid is uninitialized!");
     if (!this.isWithinGridBounds(tile.row, tile.col)) {
@@ -75,14 +75,14 @@ export default class Grid {
     return groundTile;
   }
 
-  getRandomFreeCell(walkableTiles?: GroundArea[]): Cell | null {
+  getRandomFreeTile(walkableTiles?: GroundArea[]): Tile | null {
     if (this.isActive && this.grid.length === 0)
       throw new Error("Grid is uninitialized!");
-    return getRandomFreeCell(this.grid, walkableTiles);
+    return getRandomFreeTile(this.grid, walkableTiles);
   }
 
   isTileWalkable(
-    tile: Cell,
+    tile: Tile,
     walkableTiles: GroundArea[] = [GroundArea.GRASS],
   ): boolean {
     if (this.isActive && this.grid.length === 0)
@@ -99,7 +99,7 @@ export default class Grid {
     );
   }
 
-  getSpriteAtOccupiedTile(tile: Cell): number {
+  getSpriteAtOccupiedTile(tile: Tile): number {
     const key = this.getTileKey(tile);
     const state = this.occupiedTileState.get(key);
 
@@ -108,12 +108,12 @@ export default class Grid {
     return state.sprite;
   }
 
-  isTileOccupied(tile: Cell): boolean {
+  isTileOccupied(tile: Tile): boolean {
     return this.occupiedTileState.has(this.getTileKey(tile));
   }
 
   blockTile(id: number, pos: Vec2) {
-    const { row, col } = this.getGridCellFromPos(pos);
+    const { row, col } = this.getGridTileFromPos(pos);
     const key = this.getTileKey({ row, col });
 
     if (this.tempBlockedTileState.has(key)) {
@@ -129,7 +129,7 @@ export default class Grid {
   }
 
   unBlockTile(id: number, pos: Vec2): void {
-    const { row, col } = this.getGridCellFromPos(pos);
+    const { row, col } = this.getGridTileFromPos(pos);
     const key = this.getTileKey({ row, col });
     const state = this.tempBlockedTileState.get(key);
 
@@ -143,7 +143,7 @@ export default class Grid {
   }
 
   occupyTile(id: number, pos: Vec2): void {
-    const { row, col } = this.getGridCellFromPos(pos);
+    const { row, col } = this.getGridTileFromPos(pos);
     const key = this.getTileKey({ row, col });
 
     if (this.occupiedTileState.has(key)) {
@@ -159,7 +159,7 @@ export default class Grid {
   }
 
   unoccupyTile(id: number, pos: Vec2, cooldown?: number): void {
-    const { row, col } = this.getGridCellFromPos(pos);
+    const { row, col } = this.getGridTileFromPos(pos);
 
     const key = this.getTileKey({ row, col });
     const state = this.occupiedTileState.get(key);
@@ -180,8 +180,8 @@ export default class Grid {
     }
   }
 
-  private getGridCellFromPos(pos: Vec2): Cell {
-    const tile = posToCell(pos, this.scene.art.tileSize);
+  private getGridTileFromPos(pos: Vec2): Tile {
+    const tile = posToTile(pos, this.scene.art.tileSize);
     // console.dir(tile);
     if (tile.row % 1 !== 0 || tile.col % 1 !== 0)
       throw new Error("Not a whole tile");
@@ -191,13 +191,13 @@ export default class Grid {
       tile.col < 0 ||
       tile.col >= this.grid[0].length
     ) {
-      throw new Error("Grid cell is out of bounds");
+      throw new Error("Tile is out of bounds.");
     }
 
     return tile;
   }
 
-  private getTileKey(tile: Cell): string {
+  private getTileKey(tile: Tile): string {
     return `${tile.row},${tile.col}`;
   }
 

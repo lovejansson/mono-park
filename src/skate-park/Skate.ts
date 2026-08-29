@@ -4,11 +4,11 @@ import {
   randomBool,
   randomEl,
   randomInt,
-  posToCell,
+  posToTile,
   isSamePos,
 } from "../lib/index.ts";
 import { Path } from "../lib/index.ts";
-import Timer, { TEN_SECONDS } from "../Timer.ts";
+import Timer, { ONE_MINUTE, ONE_SECOND, TEN_SECONDS } from "../Timer.ts";
 import Obstacle, {
   obstacles,
   obstacleTricks,
@@ -383,7 +383,7 @@ export default class Skate implements SkateUpdatable {
     };
 
     if (
-      this.play.grid.isTileOccupied(posToCell(inFrontOfPos, this.play.tileSize))
+      this.play.grid.isTileOccupied(posToTile(inFrontOfPos, this.play.tileSize))
     ) {
       // Should not happen since 1 skater is moving at a time and no skater will stand below this place otherwise
       throw new Error("Position in front of vending machine is occupied");
@@ -405,7 +405,7 @@ export default class Skate implements SkateUpdatable {
 
     if (
       this.play.grid.isTileOccupied(
-        posToCell(
+        posToTile(
           {
             x: this.bench.pos.x,
             y: this.bench.pos.y + this.bench.height,
@@ -532,11 +532,12 @@ export class RailObstacle implements SkateUpdatable {
 
           // Check if we should end this state! obs the skater has to be on an idle pos above the rail to be able to find a path from there!
           if (
-            this.timer.isStopped &&
+            !this.timer.isRunning &&
             this.skater.pos.y < this.obstacle.pos.y &&
             !this.play.skateGround.isSkateGroundBlocked() &&
             this.obstacle.getNumSkaters() > 2
           ) {
+            this.timer.stop();
             this.play.skateGround.blockSkateGround(this.skater.id);
             this.isReadyToCruise = true;
             return;
@@ -604,9 +605,10 @@ export class FlatObstacle implements SkateUpdatable {
       this.animationSeq = null;
 
       if (
-        this.timer.isStopped &&
+        !this.timer.isRunning &&
         !this.play.skateGround.isSkateGroundBlocked()
       ) {
+        this.timer.stop();
         this.play.skateGround.blockSkateGround(this.skater.id);
         this.isReadyToCruise = true;
         return;
@@ -1051,10 +1053,11 @@ export class BowlObstacle implements SkateUpdatable {
         if (this.currAction.isComplete()) {
           this.obstacle.endSkate(this.skater.id);
           if (
-            this.timer.isStopped &&
+            !this.timer.isRunning &&
             !this.play.skateGround.isSkateGroundBlocked() &&
             this.obstacle.getNumSkaters() > 2
           ) {
+            this.timer.stop();
             this.play.skateGround.blockSkateGround(this.skater.id);
 
             this.isReadyToCruise = true;
@@ -1507,7 +1510,7 @@ class WaitingMyTurn implements SkateUpdatable {
     this.skater.action = this.tag;
     this.obstacle = obstacle;
     this.timer = new Timer();
-    this.timer.start(1000);
+    this.timer.start(ONE_SECOND);
   }
 
   init() {
@@ -1525,8 +1528,9 @@ class WaitingMyTurn implements SkateUpdatable {
 
     this.timer.update(dt);
 
-    if (this.obstacle.isMyTurn(this.skater.id) && this.timer.isStopped) {
+    if (this.obstacle.isMyTurn(this.skater.id) && !this.timer.isRunning) {
       this.obstacle.skate(this.skater.id);
+      this.timer.stop();
     }
   }
 
@@ -1613,9 +1617,13 @@ export class VendingMachineShopping implements SkateUpdatable {
       return;
     }
 
-    if (this.timer.isStopped && !this.play.skateGround.isSkateGroundBlocked()) {
+    if (
+      !this.timer.isRunning &&
+      !this.play.skateGround.isSkateGroundBlocked()
+    ) {
       this.skater.direction = "s";
       this.animSeqGoBack!.start();
+      this.timer.stop();
       this.play.skateGround.blockSkateGround(this.skater.id);
       return;
     }
@@ -1742,9 +1750,11 @@ export class SitOnBench implements SkateUpdatable {
     }
 
     if (
-      this.timer?.isStopped &&
+      this.timer !== null &&
+      !this.timer.isRunning &&
       !this.play.skateGround.isSkateGroundBlocked()
     ) {
+      this.timer.stop();
       this.skater.pos.y += 4;
       this.animSeqStandUp!.start();
       this.timer = null;

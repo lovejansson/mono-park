@@ -549,10 +549,12 @@ class Eat implements CafeUpdatable {
 
   update(dt: number): void {
     this.timer.update(dt);
+
+    
   }
 
   isComplete(): boolean {
-    return this.timer.isStopped;
+    return !this.timer.isRunning;
   }
 }
 

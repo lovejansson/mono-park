@@ -1,6 +1,6 @@
 import { Scene, StaticImage } from "../lib";
-import type { Cell, Direction, Vec2 } from "../lib/types";
-import { cellToPos, manhattan, posToCell } from "../lib";
+import type { Tile, Direction, Vec2 } from "../lib/types";
+import { tileToPos, manhattan, posToTile } from "../lib";
 import type Grid from "../lib/Grid";
 
 export const obstacles = ["rail", "bowl", "flat"] as const;
@@ -215,22 +215,22 @@ export class Rail extends Obstacle {
   }
 
   getArrivePos(from: Vec2, grid: Grid): Vec2 {
-    const fromCell = posToCell(from, this.tileSize);
+    const fromTile = posToTile(from, this.tileSize);
 
     let min = Infinity;
 
     let arrivePos: Vec2 | null = null;
     let dist = 0;
 
-    let cell: Cell = { row: 0, col: 0 };
+    let tile: Tile = { row: 0, col: 0 };
 
     for (const p of this.idlePositions) {
-      cell = posToCell(p, this.tileSize);
-      dist = manhattan(fromCell, cell);
+      tile = posToTile(p, this.tileSize);
+      dist = manhattan(fromTile, tile);
 
-      if (dist < min && !grid.isTileOccupied(cell)) {
+      if (dist < min && !grid.isTileOccupied(tile)) {
         min = dist;
-        arrivePos = cellToPos(cell, this.tileSize);
+        arrivePos = tileToPos(tile, this.tileSize);
       }
     }
 
@@ -245,16 +245,16 @@ export class Rail extends Obstacle {
   getClosestTrickStartPos(from: Vec2): { pos: Vec2; railSide: RailSide } {
     // Returns either the right or left side of the rail
 
-    const fromCell = posToCell(from, this.tileSize);
+    const fromTile = posToTile(from, this.tileSize);
 
     const distLeft = manhattan(
-      fromCell,
-      posToCell(this.startPositions[0].pos, this.tileSize),
+      fromTile,
+      posToTile(this.startPositions[0].pos, this.tileSize),
     );
 
     const distRight = manhattan(
-      fromCell,
-      posToCell(this.startPositions[1].pos, this.tileSize),
+      fromTile,
+      posToTile(this.startPositions[1].pos, this.tileSize),
     );
 
     return distLeft < distRight
@@ -350,22 +350,22 @@ export class Bowl extends Obstacle {
     
     // Search around the bowl for a position that has the min distance to 'from'
 
-    const fromCell = posToCell(from, this.tileSize);
+    const fromTile = posToTile(from, this.tileSize);
 
     let min = Infinity;
 
     let arrivePos: Vec2 | null = null;
     let dist = 0;
 
-    let cell: Cell = { row: 0, col: 0 };
+    let tile: Tile = { row: 0, col: 0 };
 
     for (const p of this.idlePositions) {
-      cell = posToCell(p, this.tileSize);
-      dist = manhattan(fromCell, cell);
+      tile = posToTile(p, this.tileSize);
+      dist = manhattan(fromTile, tile);
 
-      if (dist < min && !grid.isTileOccupied(cell)) {
+      if (dist < min && !grid.isTileOccupied(tile)) {
         min = dist;
-        arrivePos = cellToPos(cell, this.tileSize);
+        arrivePos = tileToPos(tile, this.tileSize);
       }
     }
 
@@ -383,8 +383,8 @@ export class Bowl extends Obstacle {
 
     for (const p of this.startPositions) {
       const dist = manhattan(
-        posToCell(from, this.tileSize),
-        posToCell(p.pos, this.tileSize),
+        posToTile(from, this.tileSize),
+        posToTile(p.pos, this.tileSize),
       );
 
       if (dist < min) {
@@ -432,7 +432,7 @@ export class Flat extends Obstacle {
   getArrivePos(_: Vec2, grid: Grid): Vec2 {
     const arrivePos =
       this.positions.find(
-        (p) => !grid.isTileOccupied(posToCell(p, this.scene.art.tileSize)),
+        (p) => !grid.isTileOccupied(posToTile(p, this.scene.art.tileSize)),
       ) ?? null;
 
     if (arrivePos === null) {

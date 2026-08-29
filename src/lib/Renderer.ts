@@ -193,7 +193,7 @@ export default class Renderer {
     ctx: CanvasRenderingContext2D,
     rows: number,
     cols: number,
-    cellSize: number,
+    tileSize: number,
     strokeColor = "black",
   ) {
     ctx.beginPath();
@@ -204,11 +204,11 @@ export default class Renderer {
     ctx.imageSmoothingEnabled = false;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        ctx.moveTo(c * cellSize + offset, r * cellSize + offset);
-        ctx.lineTo((c + 1) * cellSize + offset, r * cellSize + offset);
-        ctx.lineTo((c + 1) * cellSize + offset, (r + 1) * cellSize + offset);
-        ctx.lineTo(c * cellSize + offset, (r + 1) * cellSize + offset);
-        ctx.lineTo(c * cellSize + offset, r * cellSize + offset);
+        ctx.moveTo(c * tileSize + offset, r * tileSize + offset);
+        ctx.lineTo((c + 1) * tileSize + offset, r * tileSize + offset);
+        ctx.lineTo((c + 1) * tileSize + offset, (r + 1) * tileSize + offset);
+        ctx.lineTo(c * tileSize + offset, (r + 1) * tileSize + offset);
+        ctx.lineTo(c * tileSize + offset, r * tileSize + offset);
       }
     }
     ctx.stroke();

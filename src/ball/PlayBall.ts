@@ -96,7 +96,7 @@ export default class PlayBall implements PlayBallUpdatable {
           break;
         case Pass.TAG:
           if (
-            this.timer.isStopped &&
+            !this.timer.isRunning &&
             this.game.canQuit() &&
             this.game.hasChillPos()
           ) {
@@ -221,10 +221,11 @@ class Pass implements PlayBallUpdatable {
   update(dt: number): void {
      if (this.timer !== null ) this.timer.update(dt);
 
-    if (this.timer.isStopped && !this.hasTriggeredPass) {
+    if (!this.timer.isRunning && !this.hasTriggeredPass) {
       this.baller.animations.play(`shoot-${this.passDirection}`);
       this.game.pass(this.game.getPlayerToPassTo(this.baller.id));
       this.hasTriggeredPass = true;
+      this.timer.stop();
       return;
     }
 

@@ -4,7 +4,7 @@ import {
   euclidean,
   isSamePos,
   manhattan,
-  posToCell,
+  posToTile,
   roundToDecimal,
 } from "../lib/utils";
 import type Play from "../Play";
@@ -110,7 +110,7 @@ export default class BallGame {
   hasChillPos(): boolean {
     return (
       this.chillinPositions.find(
-        (p) => !this.play.grid.isTileOccupied(posToCell(p, this.play.tileSize)),
+        (p) => !this.play.grid.isTileOccupied(posToTile(p, this.play.tileSize)),
       ) !== undefined
     );
   }
@@ -125,13 +125,13 @@ export default class BallGame {
     let pos: Vec2 | null = null;
 
     for (const p of this.chillinPositions) {
-      if (this.play.grid.isTileOccupied(posToCell(p, this.play.tileSize))) {
+      if (this.play.grid.isTileOccupied(posToTile(p, this.play.tileSize))) {
         continue;
       }
 
       const dist = manhattan(
-        posToCell(p, this.play.tileSize),
-        posToCell(player.pos, this.play.tileSize),
+        posToTile(p, this.play.tileSize),
+        posToTile(player.pos, this.play.tileSize),
       );
 
       if (dist < min) {

@@ -21,7 +21,7 @@ export { default as Sprite } from "./objects/Sprite.ts";
 export { default as Scene } from "./Scene.ts";
 export { default as ArtObject } from "./objects/ArtObject.ts";
 export { default as SpritesheetsManager } from "./SpritesheetsManager.ts";
-export { type Vec2, type Direction, type Cell, type RelativeDirection } from "./types.ts";
+export { type Vec2, type Direction, type Tile, type RelativeDirection } from "./types.ts";
 
 export {
   type AsepriteJSON,
@@ -31,6 +31,6 @@ export {
   type AsepriteMeta,
 } from "./SpritesheetsManager.ts";
 export { default as Path } from "./Path.ts";
-export {cellToPos, getPosDiff, isSameCell, isSamePos, manhattan, normalize, posToCell, randomBool, randomEl, randomIndex, randomInt, randomOdd, dist, euclidean} from "./utils.ts";
+export { tileToPos, getPosDiff, isSameTile, isSamePos, manhattan, normalize, posToTile as posToTile, randomBool, randomEl, randomIndex, randomInt, randomOdd, dist, euclidean} from "./utils.ts";
 export {default as PathCollisionManager } from "./PathCollisionManager.ts";
 export { GroundArea } from "./Grid.ts";

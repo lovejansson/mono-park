@@ -1,5 +1,5 @@
 import type Bench from "../Bench";
-import { isSamePos, posToCell, type Vec2 } from "../lib";
+import { isSamePos, posToTile, type Vec2 } from "../lib";
 import type Play from "../Play";
 import VendingMachine from "../VendingMachine";
 import type { ObstacleType } from "./Obstacle";
@@ -51,7 +51,7 @@ export default class SkateGround {
 
   getEnterPos(): Vec2 {
     const pos = this.enterPositions.find(
-      (p) => !this.play.grid.isTileOccupied(posToCell(p, this.play.tileSize)),
+      (p) => !this.play.grid.isTileOccupied(posToTile(p, this.play.tileSize)),
     );
 
     if (pos === undefined) throw new Error("No free enter pos found"); // Should not happen according to design
@@ -65,7 +65,7 @@ export default class SkateGround {
 
   getGrassIdlePos(): Vec2 {
     const pos = this.grassIdlePositions.find(
-      (p) => !this.play.grid.isTileOccupied(posToCell(p, this.play.tileSize)),
+      (p) => !this.play.grid.isTileOccupied(posToTile(p, this.play.tileSize)),
     );
 
     if (pos === undefined) throw new Error("No free idle pos on grass found"); // Should not happen according to design

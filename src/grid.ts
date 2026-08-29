@@ -1,16 +1,16 @@
-import type { Cell } from "./lib/types";
-import { isSameCell, randomEl } from "./lib";
+import type { Tile } from "./lib/types";
+import { isSameTile, randomEl } from "./lib";
 
 export function createGrid(
   rows: number,
   cols: number,
-  defaultCellValue: any = null,
+  defaultTileValue: any = null,
 ) {
   const grid = [];
   for (let r = 0; r < rows; ++r) {
     const row = [];
     for (let c = 0; c < cols; ++c) {
-      const value = defaultCellValue;
+      const value = defaultTileValue;
       row.push(value);
     }
 
@@ -20,8 +20,8 @@ export function createGrid(
   return grid;
 }
 
-export function findClosestFreeCell(
-  from: Cell,
+export function findClosestFreeTile(
+  from: Tile,
   grid: any[][],
   walkableTileValues: number[] = [0],
 ) {
@@ -29,9 +29,9 @@ export function findClosestFreeCell(
   const cols = grid[0].length;
 
   const visited: boolean[][] = createGrid(rows, cols, false);
-  const queue: Cell[] = [];
+  const queue: Tile[] = [];
 
-  let curr: Cell = { ...from };
+  let curr: Tile = { ...from };
 
   queue.push(from);
 
@@ -53,50 +53,43 @@ export function findClosestFreeCell(
   return null;
 }
 
-export function getRandomFreeCell(
+export function getRandomFreeTile(
   grid: any[][],
   walkableTileValues: number[] = [0],
 ) {
-  const freeCells: Cell[] = [];
+  const freeTiles: Tile[] = [];
 
   for (let r = 0; r < grid.length; ++r) {
     for (let c = 0; c < grid[r].length; ++c) {
       if (walkableTileValues.includes(grid[r][c])) {
-        freeCells.push({ row: r, col: c });
+        freeTiles.push({ row: r, col: c });
       }
     }
   }
 
-  return randomEl(freeCells);
+  return randomEl(freeTiles);
 }
 
 export function createPathAStar(
-  from: Cell,
-  to: Cell,
+  from: Tile,
+  to: Tile,
   grid: any[][],
   walkableTileValues: number[] = [0],
-): Cell[] {
-  // if (!cellIsWithinBounds(from, grid))
-  //   throw new Error("'from' cell is out of bounds");
-  // if (!cellIsWithinBounds(to, grid))
-  //   throw new Error("'to' cell is out of bounds");
-
-  //   console.log(grid)
-  //  console.log(grid[from.row][from.col])
-  if (isSameCell(from, to))
-    throw new Error("from cell and to cell are the same!");
+): Tile[] {
+  if (isSameTile(from, to))
+    throw new Error("from tile and to tile are the same!");
 
   const rows = grid.length;
   const cols = grid[0].length;
 
-  const manhattan = (a: Cell, b: Cell) =>
+  const manhattan = (a: Tile, b: Tile) =>
     Math.abs(b.row - a.row) + Math.abs(b.col - a.col);
 
   const heuristic = manhattan;
 
-  const reconstructPath = (pathMap: (Cell | null)[][]): Cell[] => {
-    let curr: Cell | null = to;
-    const path: Cell[] = [to];
+  const reconstructPath = (pathMap: (Tile | null)[][]): Tile[] => {
+    let curr: Tile | null = to;
+    const path: Tile[] = [to];
 
     while (curr) {
       curr = pathMap[curr.row][curr.col];
@@ -106,8 +99,8 @@ export function createPathAStar(
     return path.reverse();
   };
 
-  const openList: Cell[] = [from];
-  const closeList: Cell[] = [];
+  const openList: Tile[] = [from];
+  const closeList: Tile[] = [];
 
   const pathMap = createGrid(rows, cols, null);
   const gScores = createGrid(rows, cols, Infinity);
@@ -117,7 +110,7 @@ export function createPathAStar(
   fScores[from.row][from.col] = heuristic(from, to);
 
   while (openList.length > 0) {
-    // Find cell with current lowest f score
+    // Find tile with current lowest f score
     const curr = openList.reduce((lowestF, c) =>
       fScores[c.row][c.col] < fScores[lowestF.row][lowestF.col] ? c : lowestF,
     );
@@ -175,13 +168,13 @@ export function createPathAStar(
 }
 
 export function getNeighbours(
-  cell: Cell,
+  tile: Tile,
   grid: (0 | 1)[][],
   includeDiagonalNeighbours = false,
-): Cell[] {
+): Tile[] {
   const rows = grid.length;
   const cols = grid[0].length;
-  const neighbours: Cell[] = [];
+  const neighbours: Tile[] = [];
 
   const neighbourDiffs = includeDiagonalNeighbours
     ? [
@@ -202,7 +195,7 @@ export function getNeighbours(
       ];
 
   for (const [r, c] of neighbourDiffs) {
-    const n = { row: cell.row + r, col: cell.col + c };
+    const n = { row: tile.row + r, col: tile.col + c };
     if (n.row !== -1 && n.col !== -1 && n.row !== rows && n.col !== cols)
       neighbours.push(n);
   }

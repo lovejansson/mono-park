@@ -107,8 +107,7 @@ async function main() {
 
       await syncUI();
 
-      if(dialogError.open) {
-    
+      if (dialogError.open) {
         dialogError.close();
       }
 
@@ -157,6 +156,5 @@ async function main() {
     }
   }
 }
-
 
 main();

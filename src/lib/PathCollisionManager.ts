@@ -1,7 +1,7 @@
 import { GroundArea } from "./Grid";
 import type Scene from "./Scene";
-import type { Cell } from "./types";
-import { cellToPos, isSameCell } from "./utils";
+import type { Tile } from "./types";
+import { tileToPos, isSameTile } from "./utils";
 
 export enum ResolutionResult {
   MOVE,
@@ -9,8 +9,8 @@ export enum ResolutionResult {
 }
 
 type MoveIntent = {
-  currentTile: Cell;
-  nextTile: Cell;
+  currentTile: Tile;
+  nextTile: Tile;
   wait: number;
   result: ResolutionResult | null;
 };
@@ -26,7 +26,7 @@ export default class PathCollisionManager {
     this.intents = new Map();
   }
 
-  pushIntent(id: number, currentTile: Cell, nextTile: Cell) {
+  pushIntent(id: number, currentTile: Tile, nextTile: Tile) {
     this.intents.set(id, { currentTile, nextTile, wait: 0, result: null });
   }
 
@@ -35,14 +35,14 @@ export default class PathCollisionManager {
 
     this.scene.grid.unoccupyTile(
       id,
-      cellToPos(currPathState.currentTile, this.scene.art.tileSize),
+      tileToPos(currPathState.currentTile, this.scene.art.tileSize),
     );
 
     if (
       this.scene.grid.isTileOccupied(currPathState.nextTile) &&
       this.scene.grid.getSpriteAtOccupiedTile(currPathState.nextTile) === id
     ) {
-      // Sprite occupied some cell prehand and is therefore allowed to walk on their own tile
+      // Sprite occupied some tile prehand and is therefore allowed to walk on their own tile
 
       this.deletePathState(id);
       return;
@@ -50,7 +50,7 @@ export default class PathCollisionManager {
 
     this.scene.grid.occupyTile(
       id,
-      cellToPos(currPathState.nextTile, this.scene.art.tileSize),
+      tileToPos(currPathState.nextTile, this.scene.art.tileSize),
     );
 
     this.deletePathState(id);
@@ -78,12 +78,12 @@ export default class PathCollisionManager {
 
     const tileGroups: Map<
       string,
-      { nextTile: Cell; id: number; wait: number; currTile: Cell }[]
+      { nextTile: Tile; id: number; wait: number; currTile: Tile }[]
     > = new Map();
 
     let tileKey = "";
     let existingValue:
-      | { nextTile: Cell; id: number; wait: number; currTile: Cell }[]
+      | { nextTile: Tile; id: number; wait: number; currTile: Tile }[]
       | undefined = undefined;
 
     for (const [id, state] of this.intents) {

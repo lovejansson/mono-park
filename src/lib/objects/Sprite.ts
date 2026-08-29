@@ -3,7 +3,7 @@ import ArtObject from "./ArtObject.ts";
 import type Scene from "../Scene.js";
 import type Path from "../Path.ts";
 import type { Vec2, Direction } from "../types.ts";
-import { posToCell } from "../utils.ts";
+import { posToTile } from "../utils.ts";
 import type AnimationSequence from "../animations/AnimationSequence.ts";
 
 export default abstract class Sprite extends ArtObject {
@@ -59,8 +59,8 @@ export default abstract class Sprite extends ArtObject {
     );
   }
 
-  getGridCell() {
-    return posToCell(this.pos, this.scene.art!.tileSize);
+  getTile() {
+    return posToTile(this.pos, this.scene.art!.tileSize);
   }
 
   isFacingEast(): boolean {

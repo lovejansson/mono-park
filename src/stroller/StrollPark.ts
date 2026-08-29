@@ -1,4 +1,4 @@
-import { posToCell, type Direction, type Vec2 } from "../lib";
+import { posToTile, type Direction, type Vec2 } from "../lib";
 import type Play from "../Play";
 
 export enum StrollSpot {
@@ -72,7 +72,7 @@ export default class StrollPark {
 
     const spotPos = spot.positions.find(
       (p) =>
-        !this.play.grid.isTileOccupied(posToCell(p.pos, this.play.tileSize)),
+        !this.play.grid.isTileOccupied(posToTile(p.pos, this.play.tileSize)),
     );
 
     if (spotPos === undefined)

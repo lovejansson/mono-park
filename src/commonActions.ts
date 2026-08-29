@@ -1,7 +1,7 @@
 import type { Updatable } from "./actions";
 import type { Sprite, Vec2 } from "./lib";
 import type { Direction } from "./lib/types";
-import { AnimationSequence, posToCell, TransitionType } from "./lib";
+import { AnimationSequence, posToTile, TransitionType } from "./lib";
 import type { OverlayOptions } from "./lib";
 import { Path } from "./lib";
 import type Play from "./Play";
@@ -123,8 +123,9 @@ export class GoTo implements CommonUpdatable {
 
     if (this.startDelay > 0) {
       this.delayTimer.update(dt);
-      if (this.delayTimer.isStopped) {
+      if (!this.delayTimer.isRunning) {
         this.startDelay = 0;
+        this.delayTimer.stop();
         if (this.startAlignSeq !== null) {
           this.startAlignSeq.start();
         } else {
@@ -239,7 +240,7 @@ export class GoTo implements CommonUpdatable {
     }
 
     // Unoccupy goal tile if its already blocked by us?
-    const goalTile = posToCell(this.pathGoalPos, scene.art.tileSize);
+    const goalTile = posToTile(this.pathGoalPos, scene.art.tileSize);
 
     if (scene.grid.isTileOccupied(goalTile)) {
       const occupant = scene.grid.getSpriteAtOccupiedTile(goalTile);
@@ -341,10 +342,14 @@ export class StandIdle implements CommonUpdatable {
       this.human.direction = this.direction;
       this.human.animations.play(`idle-stand-${this.direction}`);
     }
+
+    if(!this.timer.isRunning) {
+       this.timer.stop();
+    }
   }
 
   isComplete(): boolean {
-    return this.timer !== null && this.timer.isStopped;
+    return this.timer !== null && !this.timer.isRunning;
   }
 }
 
@@ -393,8 +398,7 @@ export class SittingOnBench implements CommonUpdatable {
   }
 
   update(dt: number): void {
- 
-    if (this.timer !== null ) this.timer.update(dt);
+    if (this.timer !== null) this.timer.update(dt);
 
     if (this.animSeqStandUp?.hasStarted()) {
       if (this.animSeqStandUp.isFinished) {
@@ -424,9 +428,10 @@ export class SittingOnBench implements CommonUpdatable {
       return;
     }
 
-    if (this.timer?.isStopped) {
+    if (this.timer !== null && !this.timer.isRunning) {
       this.human.pos.y += 4;
       this.animSeqStandUp!.start();
+      this.timer.stop();
       this.timer = null;
 
       return;
@@ -465,17 +470,20 @@ export class SitOnGrass implements CommonUpdatable {
   }
 
   update(dt: number): void {
-
-     if (this.timer !== null ) this.timer.update(dt);
+    if (this.timer !== null) this.timer.update(dt);
 
     if (!this.human.animations.isPlaying(`idle-sit-${this.direction}`)) {
       this.human.direction = this.direction;
       this.human.animations.play(`idle-sit-${this.direction}`);
     }
+
+     if(!this.timer.isRunning) {
+       this.timer.stop();
+    }
   }
 
   isComplete(): boolean {
-    return this.timer !== null && this.timer.isStopped;
+    return this.timer !== null && !this.timer.isRunning;
   }
 }
 

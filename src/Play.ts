@@ -6,10 +6,10 @@ import {
   type Vec2,
 } from "./lib/index.ts";
 import { type Tilemap } from "./types.ts";
-import { getRandomFreeCell } from "./grid.ts";
+import { getRandomFreeTile } from "./grid.ts";
 import Obstacle, { Bowl, Flat, Rail } from "./skate-park/Obstacle.ts";
 import Skater from "./skate-park/Skater.ts";
-import { cellToPos } from "./lib";
+import { tileToPos } from "./lib";
 import Bench from "./Bench.ts";
 import spikeSkaterJSON from "./assets/spritesheets/spike-skater.json";
 import spikeBaseJSON from "./assets/spritesheets/spike-base.json";
@@ -543,12 +543,12 @@ export default class Play extends Scene {
   }
 
   private pushSkater(skater: Skater) {
-    const cell = getRandomFreeCell(this.grid.getGrid(), [
+    const tile = getRandomFreeTile(this.grid.getGrid(), [
       GroundArea.SKATE_GROUND,
     ]);
-    if (cell === null) return;
+    if (tile === null) return;
 
-    skater.pos = cellToPos(cell, this.tileSize);
+    skater.pos = tileToPos(tile, this.tileSize);
     skater.init();
     this.skaters.push(skater);
     this.addObject(skater);
@@ -873,10 +873,10 @@ export default class Play extends Scene {
   private initDucks() {
     const getInitDuckPos = (id: number) => {
       while (true) {
-        const tile = this.grid.getRandomFreeCell([GroundArea.POND]);
+        const tile = this.grid.getRandomFreeTile([GroundArea.POND]);
 
         if (tile !== null && tile.row > 6) {
-          const pos = cellToPos(tile, this.art.tileSize);
+          const pos = tileToPos(tile, this.art.tileSize);
           this.grid.occupyTile(id, pos);
           return pos;
         }
