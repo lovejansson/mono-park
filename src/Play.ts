@@ -49,6 +49,8 @@ import aikoBaseJSON from "./assets/spritesheets/aiko-base.json";
 import jadenBaseJSON from "./assets/spritesheets/jaden-base.json";
 import kellyBaseJSON from "./assets/spritesheets/kelly-base.json";
 
+import fikaJSON from "./assets/spritesheets/fika.json";
+
 import ballJSON from "./assets/spritesheets/ball.json";
 import duckJSON from "./assets/spritesheets/duck.json";
 import foodsCafeJSON from "./assets/spritesheets/foods.json";
@@ -164,15 +166,7 @@ export default class Play extends Scene {
   }
 
   async init() {
-    await this.loadStaticAssets();
-
-    this.art.audio.add("ambience", "/sound/ambience.mp3");
-
-    for (const t of this.playlist) {
-      this.art.audio.add(t, `/sound/playlist/${t}.webm`, false);
-    }
-
-    await this.art.audio.load();
+    await this.loadAssets();
 
     const obstacles: Obstacle[] = [];
     const skateGroundBenches: Bench[] = [];
@@ -342,7 +336,9 @@ export default class Play extends Scene {
   }
 
   start() {
+
     if (this.art.isPlaying) {
+     
       this.art.audio.play("ambience", 1, true);
       this.art.audio.playlist(this.playlist, 0.25, true);
     }
@@ -455,6 +451,7 @@ export default class Play extends Scene {
 
     let isColliding = false;
     for (const d of this.ducks) {
+     
       // Render the ducks before bridge/tree to get them behind
       const collisionBridge = getCollision(d, bridge!);
 
@@ -1164,10 +1161,20 @@ export default class Play extends Scene {
     this.loadSprite(baseKey, baseJson);
   }
 
-  private async loadStaticAssets() {
+  private async loadAssets() {
+    this.art.audio.add("ambience", "/sound/ambience.mp3");
+
+    for (const t of this.playlist) {
+      this.art.audio.add(t, `/sound/playlist/${t}.webm`, false);
+    }
+
+    await this.art.audio.load();
+
     this.art!.images.add("tilemap", this.tilemap.tilemap);
 
     this.loadSprite("drinks", drinksJSON as AsepriteJSON);
+
+    this.loadSprite("fika", fikaJSON as AsepriteJSON)
 
     this.loadSkaterSprite(
       "spike",

@@ -77,10 +77,11 @@ export default class AudioPlayer {
     this.muteNode.gain.value = this.isMuted() ? 1 : 0;
   }
 
-  playlist(sounds: string[], volume: number = 1, loop = false): void {
+  async playlist(sounds: string[], volume: number = 1, loop = false): Promise<void> {
+  
     if (!this.onoff) return;
 
-    this.play(sounds[0], volume);
+    await this.play(sounds[0], volume);
 
     const audio = this.playingAudioNodes.get(sounds[0]);
 
@@ -93,12 +94,12 @@ export default class AudioPlayer {
     });
   }
 
-  private nextInPlaylist(
+  private async nextInPlaylist(
     sounds: string[],
     currIdx: number,
     volume: number = 1,
     loop = false,
-  ): void {
+  ): Promise<void> {
     if (!this.onoff) return;
     if (currIdx === sounds.length - 1) {
       if (loop) {
@@ -110,7 +111,7 @@ export default class AudioPlayer {
       currIdx += 1;
     }
 
-    this.play(sounds[currIdx], volume);
+    await this.play(sounds[currIdx], volume);
 
     const audio = this.playingAudioNodes.get(sounds[currIdx]);
 
@@ -123,6 +124,7 @@ export default class AudioPlayer {
   }
 
   async play(id: string, volume: number = 1, loop = false): Promise<void> {
+    console.log("PLAY", id)
     if (!this.onoff) throw new AudioPlayerOffStateError("play");
 
     if (this.playingAudioNodes.has(id)) return;

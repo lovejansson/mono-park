@@ -19,6 +19,7 @@ export default class Renderer {
   private pauseScene?: Scene;
   private isRunning: boolean;
   private animationFrameID: number;
+  private hasUpdatedPlayForPause: boolean;
 
   constructor(art: Art, config: ArtConfig) {
     this.ctx = null; // Is set in init();
@@ -28,6 +29,7 @@ export default class Renderer {
     this.elapsedPrev = 0;
     this.isRunning = false;
     this.animationFrameID = -1;
+    this.hasUpdatedPlayForPause = false;
   }
 
   getImageData(): ImageData {
@@ -75,9 +77,9 @@ export default class Renderer {
     this.isRunning = true;
     this.elapsedPrev = 0;
 
-    this.animationFrameID = requestAnimationFrame((elapsed) =>
-      this.run(elapsed),
-    );
+    this.animationFrameID = requestAnimationFrame((elapsed) => {
+      this.run(elapsed);
+    });
   }
 
   stop(): void {
@@ -145,11 +147,14 @@ export default class Renderer {
           this.pauseScene.update(dt);
           this.drawSceneCanvasObjects(this.pauseScene);
         } else {
-          // Just update alittle to get the ball running!
-          if (elapsed < 100) {
+          // Just update once to get something to show in pause 
+
+          if (!this.hasUpdatedPlayForPause) {
             this.updateSceneAnimations(this.playScene, dt);
             this.playScene.update(dt);
+             this.hasUpdatedPlayForPause = true;
           }
+
           this.drawSceneCanvasObjects(this.playScene);
           if (this.art.displayGrid) {
             this.drawGrid(

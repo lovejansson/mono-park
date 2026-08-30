@@ -1,5 +1,5 @@
-import Human, { getFoodOverlay } from "../Human";
-import { AnimationSequence, GroundArea, Sprite, TransitionType } from "../lib";
+import Human, { getFikaOverlay } from "../Human";
+import { AnimationSequence, GroundArea, randomEl, Sprite, TransitionType } from "../lib";
 import Timer, { TEN_SECONDS } from "../Timer";
 import {
   GoTo,
@@ -15,6 +15,7 @@ import { getGoalPositionWithDirectionAwareRounding } from "../utils";
 
 import type Table from "./Table";
 import type { Seat } from "./Table";
+import { fikaItems } from "./Cafe";
 
 const DOOR_VISIBILITY_TRAVEL_RATIO = 0.5;
 
@@ -144,6 +145,7 @@ class WaitTable implements CafeUpdatable {
   private animationSeq: AnimationSequence | null;
   private goTo: GoTo | null;
   private hasWaited: boolean;
+  private fikaItem: string;
 
   constructor(human: Human, cafe: Cafe, order: OrderEvent) {
     this.human = human;
@@ -153,6 +155,7 @@ class WaitTable implements CafeUpdatable {
     this.animationSeq = null;
     this.goTo = null;
     this.hasWaited = false;
+    this.fikaItem = randomEl(fikaItems)!;
   }
 
   init() {
@@ -219,7 +222,7 @@ class WaitTable implements CafeUpdatable {
               options: {
                 overlays:
                   this.order.type === OrderEventType.SERVE
-                    ? [getFoodOverlay(this.human.direction, "pizza")]
+                    ? [getFikaOverlay(this.human.direction, this.fikaItem)]
                     : undefined,
               },
             },
@@ -238,7 +241,7 @@ class WaitTable implements CafeUpdatable {
             {
               overlays:
                 this.order.type === OrderEventType.SERVE
-                  ? [getFoodOverlay(this.human.direction, "pizza")]
+                  ? [getFikaOverlay(this.human.direction, this.fikaItem)]
                   : undefined,
             },
           );
@@ -285,7 +288,7 @@ class WaitTable implements CafeUpdatable {
               options: {
                 overlays:
                   this.order.type === OrderEventType.SERVE
-                    ? [getFoodOverlay(this.human.direction, "pizza")]
+                    ? [getFikaOverlay(this.human.direction, this.fikaItem)]
                     : undefined,
               },
             },
@@ -326,7 +329,7 @@ class WaitTable implements CafeUpdatable {
                   : "idle-stand",
               overlayFn:
                 this.order.type === OrderEventType.SERVE
-                  ? (human: Sprite) => getFoodOverlay(human.direction, "pizza")
+                  ? (human: Sprite) => getFikaOverlay(human.direction, this.fikaItem)
                   : undefined,
             },
           );
@@ -543,14 +546,12 @@ class Eat implements CafeUpdatable {
   init() {
     this.timer.start(this.duration);
     this.human.animations.play(`eat-${this.human.direction}`, {
-      overlays: [getFoodOverlay(this.human.direction, "pizza")],
+      overlays: [getFikaOverlay(this.human.direction, randomEl(fikaItems)!)],
     });
   }
 
   update(dt: number): void {
-    this.timer.update(dt);
-
-    
+    this.timer.update(dt); 
   }
 
   isComplete(): boolean {
@@ -632,7 +633,6 @@ export interface CafeUpdatable extends Updatable {
 const spec = {
   fika: { ctor: Fika },
   "work-at-cafe": { ctor: WorkAtCafe },
-
   order: { ctor: Order },
   "wait-table": { ctor: WaitTable },
   "wait-for-order": { ctor: WaitForOrder },

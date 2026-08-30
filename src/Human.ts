@@ -33,8 +33,6 @@ export default class Human extends Sprite {
   }
 
   init(): void {
-  
-
     this.animations.registerSpritesheet(`${this.name}-base`, {
       defaults: REPEAT_DEFAULTS,
     });
@@ -222,7 +220,7 @@ const REPEAT_DEFAULTS = Object.fromEntries(
   ]),
 ) as Record<string, { repeat: number | boolean }>;
 
-export function getFoodOverlay(
+export function getFikaOverlay(
   direction: Direction,
   food: string,
 ): OverlayOptions {
@@ -232,32 +230,32 @@ export function getFoodOverlay(
         name: food,
         drawOnTop: false,
         drawBehind: true,
-        dy: 0,
-        dx: 0,
+        dy: 25,
+        dx: 5,
       };
     case "e":
       return {
         name: food,
         drawOnTop: false,
         drawBehind: true,
-        dy: 3,
-        dx: 6,
+        dy: 25,
+        dx: 10,
       };
     case "s":
       return {
         name: food,
         drawOnTop: true,
         drawBehind: false,
-        dy: 6,
-        dx: 0,
+        dy: 25,
+       dx: 5,
       };
     case "w":
       return {
         name: food,
         drawOnTop: false,
         drawBehind: true,
-        dy: 3,
-        dx: -5,
+        dy: 25,
+        dx: 1,
       };
   }
 

@@ -12,6 +12,8 @@ enum GuestsOrderState {
   SERVED,
 }
 
+export const fikaItems = ["ice-cream1", "ice-cream2", "bun", "donout", "bubble-tea", "cookie", "coffe"];
+
 class Guests {
   private guests: { guest: number; hasArrived: boolean; hasEaten: boolean }[];
   private state: GuestsOrderState;
