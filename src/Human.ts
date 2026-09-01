@@ -223,11 +223,12 @@ const REPEAT_DEFAULTS = Object.fromEntries(
 export function getFikaOverlay(
   direction: Direction,
   food: string,
+  fade?: boolean,
 ): OverlayOptions {
   switch (direction) {
     case "n":
       return {
-        name: food,
+        name: `${food}${fade ? "-fade" : ""}`,
         drawOnTop: false,
         drawBehind: true,
         dy: 25,
@@ -235,7 +236,7 @@ export function getFikaOverlay(
       };
     case "e":
       return {
-        name: food,
+        name: `${food}${fade ? "-fade" : ""}`,
         drawOnTop: false,
         drawBehind: true,
         dy: 25,
@@ -243,15 +244,15 @@ export function getFikaOverlay(
       };
     case "s":
       return {
-        name: food,
+        name: `${food}${fade ? "-fade" : ""}`,
         drawOnTop: true,
         drawBehind: false,
         dy: 25,
-       dx: 5,
+        dx: 5,
       };
     case "w":
       return {
-        name: food,
+        name: `${food}${fade ? "-fade" : ""}`,
         drawOnTop: false,
         drawBehind: true,
         dy: 25,

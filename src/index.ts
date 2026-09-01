@@ -40,7 +40,6 @@ const art = new Art({
   height: tilemap.height,
   tileSize: tilemap.tileSize,
   container: "#art-container",
-  displayGrid: true,
   loading: "#div-loading",
 });
 

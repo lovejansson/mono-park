@@ -1,4 +1,5 @@
 import { createGrid, getRandomFreeTile } from "../grid";
+import Timer from "../Timer";
 import type Scene from "./Scene";
 import type { Tile, Vec2 } from "./types";
 import { posToTile } from "./utils";
@@ -93,10 +94,7 @@ export default class Grid {
 
     const groundTile = this.getGround(tile);
 
-    return (
-      walkableTiles.includes(groundTile) &&
-      !this.isTileOccupied(tile)
-    );
+    return walkableTiles.includes(groundTile) && !this.isTileOccupied(tile);
   }
 
   getSpriteAtOccupiedTile(tile: Tile): number {
@@ -158,7 +156,7 @@ export default class Grid {
     this.grid[row][col] = GroundArea.OCCUPIED;
   }
 
-  unoccupyTile(id: number, pos: Vec2, cooldown?: number): void {
+  unoccupyTile(id: number, pos: Vec2): void {
     const { row, col } = this.getGridTileFromPos(pos);
 
     const key = this.getTileKey({ row, col });
@@ -169,20 +167,13 @@ export default class Grid {
     if (state.sprite !== id)
       throw new Error(`Tile is occupied by other sprite`);
 
-    if (cooldown) {
-      setTimeout(() => {
-        this.grid[row][col] = state.ground;
-        this.occupiedTileState.delete(key);
-      }, cooldown);
-    } else {
-      this.grid[row][col] = state.ground;
-      this.occupiedTileState.delete(key);
-    }
+    this.grid[row][col] = state.ground;
+    this.occupiedTileState.delete(key);
   }
 
   private getGridTileFromPos(pos: Vec2): Tile {
     const tile = posToTile(pos, this.scene.art.tileSize);
-    // console.dir(tile);
+
     if (tile.row % 1 !== 0 || tile.col % 1 !== 0)
       throw new Error("Not a whole tile");
     if (

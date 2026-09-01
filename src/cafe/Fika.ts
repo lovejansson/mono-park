@@ -1,6 +1,12 @@
 import Human, { getFikaOverlay } from "../Human";
-import { AnimationSequence, GroundArea, randomEl, Sprite, TransitionType } from "../lib";
-import Timer, { TEN_SECONDS } from "../Timer";
+import {
+  AnimationSequence,
+  GroundArea,
+  randomEl,
+  Sprite,
+  TransitionType,
+} from "../lib";
+import Timer, {  ONE_MINUTE, THREE_SECONDS } from "../Timer";
 import {
   GoTo,
   type CommonActionSpec,
@@ -146,6 +152,7 @@ class WaitTable implements CafeUpdatable {
   private goTo: GoTo | null;
   private hasWaited: boolean;
   private fikaItem: string;
+  private timer: Timer;
 
   constructor(human: Human, cafe: Cafe, order: OrderEvent) {
     this.human = human;
@@ -156,6 +163,7 @@ class WaitTable implements CafeUpdatable {
     this.goTo = null;
     this.hasWaited = false;
     this.fikaItem = randomEl(fikaItems)!;
+    this.timer = new Timer();
   }
 
   init() {
@@ -210,7 +218,13 @@ class WaitTable implements CafeUpdatable {
               anim: "fade-s",
               transition: null,
               type: TransitionType.Finished,
-              options: { reverse: true },
+              options: {
+                reverse: true,
+                overlays:
+                  this.order.type === OrderEventType.SERVE
+                    ? [getFikaOverlay(this.human.direction, this.fikaItem, true)]
+                    : undefined,
+              },
             },
             {
               anim:
@@ -329,7 +343,8 @@ class WaitTable implements CafeUpdatable {
                   : "idle-stand",
               overlayFn:
                 this.order.type === OrderEventType.SERVE
-                  ? (human: Sprite) => getFikaOverlay(human.direction, this.fikaItem)
+                  ? (human: Sprite) =>
+                      getFikaOverlay(human.direction, this.fikaItem)
                   : undefined,
             },
           );
@@ -362,11 +377,14 @@ class WaitTable implements CafeUpdatable {
 
           this.human.animations.play("idle-stand-" + this.human.direction);
 
-          setTimeout(() => {
+          this.timer.start(THREE_SECONDS, () => {
             this.step = WaitTableStep.WALK_TO_ROUNDED_ARRIVE;
-          }, 3000);
+          });
         }
 
+        if (this.timer.isStarted && this.timer.isRunning) {
+          this.timer.update(dt);
+        }
         break;
 
       case WaitTableStep.WALK_TO_ROUNDED_ARRIVE:
@@ -525,7 +543,10 @@ class WaitingToOrder implements CafeUpdatable {
   update(_: number): void {}
 
   isComplete(): boolean {
-    return this.cafe.allHasEaten(this.human.group.name) || this.cafe.isTakingOrder(this.human.group.name);
+    return (
+      this.cafe.allHasEaten(this.human.group.name) ||
+      this.cafe.isTakingOrder(this.human.group.name)
+    );
   }
 }
 
@@ -551,7 +572,7 @@ class Eat implements CafeUpdatable {
   }
 
   update(dt: number): void {
-    this.timer.update(dt); 
+    this.timer.update(dt);
   }
 
   isComplete(): boolean {
@@ -594,16 +615,13 @@ export default class Fika implements CafeUpdatable {
     if (this.currAction.isComplete()) {
       switch (this.currAction.tag) {
         case Order.TAG:
-     
-          this.transitionToAction(Eat.TAG, this.human, TEN_SECONDS);
+          this.transitionToAction(Eat.TAG, this.human, ONE_MINUTE);
           break;
         case Eat.TAG:
-       
           this.cafe.hasEaten(this.human.group.name, this.human.id);
           this.transitionToAction(WaitingToOrder.TAG, this.human, this.cafe);
           break;
         case WaitingToOrder.TAG:
-       
           if (!this.cafe.isTakingOrder(this.human.group.name)) {
             this.cafe.takeOrder(this.human.group.name);
           }

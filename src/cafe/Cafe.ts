@@ -3,7 +3,7 @@ import House, { Door } from "./House";
 import type Play from "../Play";
 import OrdersManager from "./orders";
 import Table from "./Table";
-import {  TEN_SECONDS } from "../Timer";
+import Timer, {  THIRTY_SECONDS } from "../Timer";
 
 enum GuestsOrderState {
   ARRIVING,
@@ -12,7 +12,15 @@ enum GuestsOrderState {
   SERVED,
 }
 
-export const fikaItems = ["ice-cream1", "ice-cream2", "bun", "donout", "bubble-tea", "cookie", "coffe"];
+export const fikaItems = [
+  "ice-cream1",
+  "ice-cream2",
+  "bun",
+  "donout",
+  "bubble-tea",
+  "cookie",
+  "coffe",
+];
 
 class Guests {
   private guests: { guest: number; hasArrived: boolean; hasEaten: boolean }[];
@@ -32,15 +40,13 @@ class Guests {
   }
 
   updateState(newState: GuestsOrderState): void {
-    
     switch (newState) {
       case GuestsOrderState.ARRIVING:
         throw new Error(
           "Arriving is the initial state. It is set at creation.",
         );
-        break
+        break;
       case GuestsOrderState.TAKE_ORDER:
-      
         if (
           !(
             this.state === GuestsOrderState.ARRIVING ||
@@ -51,17 +57,16 @@ class Guests {
           throw new Error(
             `Invalid state transition for Guests: ${this.state} -> ${newState}`,
           );
-       
+
         if (!this.allHasArrived())
           throw new Error("Can't take order until all has arrived.");
 
         if (this.state === GuestsOrderState.SERVED) {
-      
           for (const g of this.guests) {
             g.hasEaten = false;
           }
         }
-  
+
         this.state = GuestsOrderState.TAKE_ORDER;
         break;
       case GuestsOrderState.PENDING_ORDER:
@@ -112,6 +117,7 @@ export default class Cafe extends House {
   private tables: Table[];
   private reservedTables: Map<number, string | null>;
   private guests: Map<string, Guests>;
+  private timers: Timer[];
 
   constructor(
     scene: Play,
@@ -129,6 +135,7 @@ export default class Cafe extends House {
     this.reservedTables = new Map();
 
     this.guests = new Map();
+    this.timers = [];
   }
 
   init() {
@@ -137,12 +144,37 @@ export default class Cafe extends House {
     }
   }
 
+  update(dt: number): void {
+    let t: Timer = this.timers[0];
+    let indicesToRemove: number[] = [];
+
+    for (let i = 0; i < this.timers.length; ++i) {
+      t = this.timers[i];
+      if (t.isStarted) {
+        if (t.isRunning) {
+          t.update(dt);
+        } else {
+          t.stop();
+          indicesToRemove.push(i);
+        }
+      }
+    }
+
+    for (const i of indicesToRemove) {
+      this.timers.splice(i, 1);
+    }
+  }
+
   placeOrder(guests: string) {
     const table = this.getTable(guests);
 
-    setTimeout(() => {
+    const timer = new Timer();
+
+    timer.start(THIRTY_SECONDS, () => {
       this.orders.order(table, guests);
-    }, TEN_SECONDS);
+    });
+
+    this.timers.push(timer);
 
     const guestsState = this.getGuestsState(guests);
     guestsState.updateState(GuestsOrderState.PENDING_ORDER);
@@ -167,9 +199,14 @@ export default class Cafe extends House {
     const guestsState = this.getGuestsState(guests);
     guestsState.updateState(GuestsOrderState.TAKE_ORDER);
     const table = this.getTable(guests);
-    setTimeout(() => {
+
+    const timer = new Timer();
+
+    timer.start(THIRTY_SECONDS, () => {
       this.orders.takeOrder(table, guests);
-    }, TEN_SECONDS);
+    });
+
+    this.timers.push(timer);
   }
 
   isTakingOrder(guests: string): boolean {
@@ -182,12 +219,16 @@ export default class Cafe extends House {
     guestsState.setGuestArrived(guest);
 
     if (guestsState.allHasArrived()) {
-   
       guestsState.updateState(GuestsOrderState.TAKE_ORDER);
       const table = this.getTable(guests);
-      setTimeout(() => {
+
+      const timer = new Timer();
+
+      timer.start(THIRTY_SECONDS, () => {
         this.orders.takeOrder(table, guests);
-      }, TEN_SECONDS);
+      });
+
+      this.timers.push(timer);
     }
   }
 
@@ -253,7 +294,6 @@ export default class Cafe extends House {
   }
 
   getTable(guests: string): Table {
-  
     for (const [t, g] of this.reservedTables) {
       if (guests === g) {
         const table = this.tables.find((t2) => t2.id === t);

@@ -11,7 +11,7 @@ export type ArtConfig = {
   play: Scene;
   pause?: Scene;
   container?: string;
-  displayGrid: boolean;
+  displayGrid?: boolean;
   gridColor?: string;
   services?: Record<string, any>;
   scale?: "hd" | "4k";

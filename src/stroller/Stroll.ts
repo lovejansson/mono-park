@@ -12,7 +12,7 @@ import { GroundArea } from "../lib/Grid.ts";
 import type { Direction, Vec2 } from "../lib/types.ts";
 import { isSamePos } from "../lib/utils.ts";
 import Play from "../Play.ts";
-import { TEN_SECONDS } from "../Timer.ts";
+import { FIVE_MINUTES, ONE_MINUTE, THIRTY_SECONDS } from "../Timer.ts";
 import { StrollSpot } from "./StrollPark.ts";
 
 export default class Stroll implements StrollUpdatable {
@@ -49,7 +49,7 @@ export default class Stroll implements StrollUpdatable {
           StandIdle.TAG,
           this.human,
           this.spotPos.direction,
-          TEN_SECONDS * 3,
+          THIRTY_SECONDS,
         );
         break;
       case StrollSpot.CACTUSES:
@@ -58,7 +58,7 @@ export default class Stroll implements StrollUpdatable {
           StandIdle.TAG,
           this.human,
           this.spotPos.direction,
-          TEN_SECONDS * 3,
+          THIRTY_SECONDS,
         );
         break;
       case StrollSpot.SKATE_GROUND:
@@ -67,7 +67,7 @@ export default class Stroll implements StrollUpdatable {
           StandIdle.TAG,
           this.human,
           this.spotPos.direction,
-          TEN_SECONDS * 3,
+          THIRTY_SECONDS,
         );
         break;
       case StrollSpot.GRASS_BY_THE_POND:
@@ -76,7 +76,7 @@ export default class Stroll implements StrollUpdatable {
           SitOnGrass.TAG,
           this.human,
           this.spotPos.direction,
-          TEN_SECONDS * 3,
+          ONE_MINUTE * 4,
         );
         break;
       case StrollSpot.POND_BENCH:
@@ -91,7 +91,7 @@ export default class Stroll implements StrollUpdatable {
           SittingOnBench.TAG,
           this.human,
           pondBench,
-          TEN_SECONDS * 3,
+          ONE_MINUTE * 3,
         );
         break;
     }
@@ -141,7 +141,7 @@ export default class Stroll implements StrollUpdatable {
                 StandIdle.TAG,
                 this.human,
                 this.spotPos.direction,
-                TEN_SECONDS * 3,
+                THIRTY_SECONDS,
               );
               break;
             case StrollSpot.CACTUSES:
@@ -149,7 +149,7 @@ export default class Stroll implements StrollUpdatable {
                 StandIdle.TAG,
                 this.human,
                 this.spotPos.direction,
-                TEN_SECONDS * 3,
+                THIRTY_SECONDS,
               );
               break;
             case StrollSpot.SKATE_GROUND:
@@ -157,7 +157,7 @@ export default class Stroll implements StrollUpdatable {
                 StandIdle.TAG,
                 this.human,
                 this.spotPos.direction,
-                TEN_SECONDS * 3,
+                THIRTY_SECONDS,
               );
               break;
             case StrollSpot.GRASS_BY_THE_POND:
@@ -165,7 +165,7 @@ export default class Stroll implements StrollUpdatable {
                 SitOnGrass.TAG,
                 this.human,
                 this.spotPos.direction,
-                TEN_SECONDS * 3,
+                ONE_MINUTE * 4,
               );
               break;
             case StrollSpot.POND_BENCH:
@@ -179,7 +179,7 @@ export default class Stroll implements StrollUpdatable {
                 SittingOnBench.TAG,
                 this.human,
                 pondBench,
-                TEN_SECONDS * 3,
+                ONE_MINUTE * 3,
               );
               break;
           }

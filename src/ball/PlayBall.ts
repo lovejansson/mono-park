@@ -9,7 +9,7 @@ import { GroundArea } from "../lib/Grid.ts";
 import Path from "../lib/Path.ts";
 import type { Direction, Vec2 } from "../lib/types.ts";
 import { isSamePos, randomEl, randomInt } from "../lib/utils.ts";
-import Timer, {  TEN_SECONDS, THREE_SECONDS } from "../Timer.ts";
+import Timer, {  ONE_MINUTE,  THIRTY_SECONDS, THREE_SECONDS } from "../Timer.ts";
 import type Baller from "./Baller.ts";
 import type BallGame from "./BallGame.ts";
 
@@ -33,7 +33,6 @@ export default class PlayBall implements PlayBallUpdatable {
   }
 
   init() {
-    
     // The player has already entered the game here so we either they either have to go to the position or is already there.
 
     if (this.initPos !== undefined) {
@@ -47,7 +46,7 @@ export default class PlayBall implements PlayBallUpdatable {
       } else {
         this.transitionToAction(WaitForPass.TAG, this.baller, this.game);
       }
-      this.timer.start(TEN_SECONDS * randomInt(1, 2));
+      this.timer.start(ONE_MINUTE * randomInt(1, 2));
     } else {
       const playerArea = this.game.getPlayerArea(this.baller.id);
       const gamePos = randomEl(playerArea.positions)!;
@@ -62,8 +61,7 @@ export default class PlayBall implements PlayBallUpdatable {
   }
 
   update(dt: number): void {
-
-     if (this.timer !== null ) this.timer.update(dt);
+    if (this.timer !== null) this.timer.update(dt);
 
     if (this.currAction === null)
       throw new Error(`State ${PlayBall.TAG} not initialized! Call init().`);
@@ -88,7 +86,7 @@ export default class PlayBall implements PlayBallUpdatable {
           }
 
           this.transitionToAction(WaitForPass.TAG, this.baller, this.game);
-          this.timer.start(TEN_SECONDS * randomInt(1, 4));
+          this.timer.start(ONE_MINUTE * randomInt(1, 4));
           break;
 
         case WaitForPass.TAG:
@@ -150,23 +148,27 @@ class WaitForPass implements PlayBallUpdatable {
 
       // Player started walking to the pass target pos
       if (this.path !== null) {
-        this.path.update(dt);
-        if (
-          !this.baller.animations.isPlaying(`walk-${this.baller.direction}`)
-        ) {
-          this.baller.animations.play(`walk-${this.baller.direction}`);
-        }
+        if (this.path.hasStarted) {
+          this.path.update(dt);
+          if (
+            !this.baller.animations.isPlaying(`walk-${this.baller.direction}`)
+          ) {
+            this.baller.animations.play(`walk-${this.baller.direction}`);
+          }
 
-        if (this.path.hasReachedGoal) {
-          this.path.finish();
-          this.path = null;
-          this.baller.animations.play(
-            `idle-stand-${this.game.getPlayerArea(this.baller.id).direction}`,
-          );
-          this.baller.direction = playerAreaDirection;
-          this.gotPassed = true;
+          if (this.path.hasReachedGoal) {
+            this.path.finish();
+            this.path = null;
+            this.baller.animations.play(
+              `idle-stand-${this.game.getPlayerArea(this.baller.id).direction}`,
+            );
+            this.baller.direction = playerAreaDirection;
+            this.gotPassed = true;
+          }
+          return;
+        } else {
+          this.path.start();
         }
-        return;
       }
 
       // Player is at the pass target position
@@ -176,15 +178,8 @@ class WaitForPass implements PlayBallUpdatable {
         return;
       }
 
-      try {
-        this.path = new Path(this.baller, passTargetPos, [GroundArea.GRASS]);
-
-        this.path.start();
-      } catch (e) {
-        console.log(
-          "Tried to create path to the ball but a target tile was occupied",
-        );
-      }
+      this.path = new Path(this.baller, passTargetPos, [GroundArea.GRASS]);
+      this.path.start();
     }
   }
 
@@ -219,7 +214,7 @@ class Pass implements PlayBallUpdatable {
   }
 
   update(dt: number): void {
-     if (this.timer !== null ) this.timer.update(dt);
+    if (this.timer !== null) this.timer.update(dt);
 
     if (!this.timer.isRunning && !this.hasTriggeredPass) {
       this.baller.animations.play(`shoot-${this.passDirection}`);
@@ -261,7 +256,7 @@ export class Chillin implements PlayBallUpdatable {
 
   init() {
     if (isSamePos(this.chillPos, this.baller.pos)) {
-      this.transitionToAction(SitOnGrass.TAG, this.baller, "s", TEN_SECONDS);
+      this.transitionToAction(SitOnGrass.TAG, this.baller, "s", THIRTY_SECONDS);
     } else {
       this.transitionToAction(
         GoTo.TAG,
@@ -285,7 +280,7 @@ export class Chillin implements PlayBallUpdatable {
             SitOnGrass.TAG,
             this.baller,
             "s",
-            TEN_SECONDS,
+            THIRTY_SECONDS,
           );
           break;
         case SitOnGrass.TAG:

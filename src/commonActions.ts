@@ -149,8 +149,40 @@ export class GoTo implements CommonUpdatable {
 
     if (!this.hasPathPhaseFinished) {
       if (this.path !== null && !this.path.hasReachedGoal) {
-        this.path.update(dt);
-        if (this.path.isWaiting) {
+        if (this.path.hasStarted) {
+          this.path.update(dt);
+          if (this.path.isWaiting) {
+            if (
+              !this.human.animations.isPlaying(
+                `${this.idleAnimBase}-${this.human.direction}`,
+              )
+            ) {
+              this.human.animations.play(
+                `${this.idleAnimBase}-${this.human.direction}`,
+              );
+            }
+
+            return;
+          }
+
+          if (
+            !this.human.animations.isPlaying(
+              `${this.walkAnimBase}-${this.human.direction}`,
+            )
+          ) {
+            this.human.animations.play(
+              `${this.walkAnimBase}-${this.human.direction}`,
+              {
+                overlays: this.overlayFn
+                  ? [this.overlayFn(this.human)]
+                  : undefined,
+              },
+            );
+          }
+        } else {
+          // Try start path again.
+
+          this.startPath();
           if (
             !this.human.animations.isPlaying(
               `${this.idleAnimBase}-${this.human.direction}`,
@@ -162,21 +194,6 @@ export class GoTo implements CommonUpdatable {
           }
 
           return;
-        }
-
-        if (
-          !this.human.animations.isPlaying(
-            `${this.walkAnimBase}-${this.human.direction}`,
-          )
-        ) {
-          this.human.animations.play(
-            `${this.walkAnimBase}-${this.human.direction}`,
-            {
-              overlays: this.overlayFn
-                ? [this.overlayFn(this.human)]
-                : undefined,
-            },
-          );
         }
 
         return;
@@ -233,9 +250,11 @@ export class GoTo implements CommonUpdatable {
       this.path = null;
       this.hasPathPhaseFinished = true;
       this.endAlignSeq = this.buildMoveSequence(this.actualGoalPos);
+
       if (this.endAlignSeq !== null) {
         this.endAlignSeq.start();
       }
+
       return;
     }
 
@@ -251,13 +270,19 @@ export class GoTo implements CommonUpdatable {
       scene.grid.unoccupyTile(this.human.id, this.pathGoalPos);
     }
 
+    this.path = new Path(this.human, this.pathGoalPos, this.walkableTiles);
+
+    this.startPath();
+  }
+
+  private startPath(): void {
+    if (this.path === null) throw new Error("Path is not created yet");
     if (this.preBlockTiles) {
       for (const p of this.preBlockTiles) {
         this.human.scene.grid.blockTile(this.human.id, p);
       }
     }
 
-    this.path = new Path(this.human, this.pathGoalPos, this.walkableTiles);
     this.path.start();
 
     if (this.preBlockTiles) {
@@ -343,8 +368,8 @@ export class StandIdle implements CommonUpdatable {
       this.human.animations.play(`idle-stand-${this.direction}`);
     }
 
-    if(!this.timer.isRunning) {
-       this.timer.stop();
+    if (!this.timer.isRunning) {
+      this.timer.stop();
     }
   }
 
@@ -477,8 +502,8 @@ export class SitOnGrass implements CommonUpdatable {
       this.human.animations.play(`idle-sit-${this.direction}`);
     }
 
-     if(!this.timer.isRunning) {
-       this.timer.stop();
+    if (!this.timer.isRunning) {
+      this.timer.stop();
     }
   }
 

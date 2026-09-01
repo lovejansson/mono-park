@@ -8,7 +8,7 @@ import {
   isSamePos,
 } from "../lib/index.ts";
 import { Path } from "../lib/index.ts";
-import Timer, { ONE_MINUTE, ONE_SECOND, TEN_SECONDS } from "../Timer.ts";
+import Timer, { ONE_MINUTE, ONE_SECOND, TEN_SECONDS, THIRTY_SECONDS } from "../Timer.ts";
 import Obstacle, {
   obstacles,
   obstacleTricks,
@@ -109,7 +109,7 @@ export default class Skate implements SkateUpdatable {
           this.obstacle.type,
           this.skater,
           this.obstacle as Rail,
-          TEN_SECONDS,
+          ONE_MINUTE,
         );
 
         break;
@@ -127,7 +127,7 @@ export default class Skate implements SkateUpdatable {
           this.obstacle.type,
           this.skater,
           this.obstacle as Bowl,
-          TEN_SECONDS,
+          ONE_MINUTE,
         );
 
         break;
@@ -145,7 +145,7 @@ export default class Skate implements SkateUpdatable {
           this.obstacle.type,
           this.skater,
           this.obstacle as Obstacle,
-          TEN_SECONDS,
+          ONE_MINUTE,
         );
 
         break;
@@ -177,7 +177,7 @@ export default class Skate implements SkateUpdatable {
                     this.obstacle.type,
                     this.skater,
                     this.obstacle as Rail,
-                    TEN_SECONDS,
+                    ONE_MINUTE,
                   );
                   break;
                 case BowlObstacle.TAG:
@@ -185,7 +185,7 @@ export default class Skate implements SkateUpdatable {
                     this.obstacle.type,
                     this.skater,
                     this.obstacle as Bowl,
-                    TEN_SECONDS,
+                    ONE_MINUTE,
                   );
                   break;
                 case FlatObstacle.TAG:
@@ -193,7 +193,7 @@ export default class Skate implements SkateUpdatable {
                     this.obstacle.type,
                     this.skater,
                     this.obstacle as Obstacle,
-                    TEN_SECONDS,
+                    ONE_MINUTE,
                   );
                   break;
               }
@@ -220,7 +220,7 @@ export default class Skate implements SkateUpdatable {
                 SitOnBench.TAG,
                 this.skater,
                 this.bench,
-                TEN_SECONDS,
+                THIRTY_SECONDS,
                 true,
               );
               break;
@@ -233,7 +233,7 @@ export default class Skate implements SkateUpdatable {
                 SitOnGrass.TAG,
                 this.skater,
                 "w",
-                TEN_SECONDS,
+                THIRTY_SECONDS,
               );
 
               break;
@@ -1366,8 +1366,9 @@ class CruiseTo implements SkateUpdatable {
   static TAG: "cruise-to" = "cruise-to";
   readonly tag: "cruise-to" = CruiseTo.TAG;
 
-  skater: Skater;
-  path: Path | null;
+  private to: Vec2;
+  private skater: Skater;
+  private path: Path | null;
   private animSeq: AnimationSequence | null;
   private play: Play;
   private walkableTiles: GroundArea[];
@@ -1377,9 +1378,13 @@ class CruiseTo implements SkateUpdatable {
     this.skater.action = this.tag;
     this.play = this.skater.scene as Play;
     this.walkableTiles = walkableTiles ?? [GroundArea.SKATE_GROUND];
+    this.animSeq = null;
+    this.path = null;
+    this.to = to;
+  }
 
-    if (isSamePos(this.skater.pos, to)) {
-      this.path = null;
+  init() {
+    if (isSamePos(this.skater.pos, this.to)) {
       this.animSeq = new AnimationSequence(
         this.skater,
         [
@@ -1398,38 +1403,32 @@ class CruiseTo implements SkateUpdatable {
             },
           }),
         ],
-        (anim: string) => {
+        (_: string) => {
           // console.log(anim);
         },
       );
 
       this.animSeq.start();
     } else {
-      this.animSeq = null;
+      this.path = new Path(this.skater, this.to, this.walkableTiles);
 
-      try {
-        this.path = new Path(this.skater, to, this.walkableTiles);
+      const isStarted = this.path.start();
 
-        this.path.start();
-      } catch (e) {
-        console.log(e);
-        console.log("FAILED TO CREATE PATH FROM CRUISE TO!");
-
-        console.dir(this.skater.scene.grid.getGrid());
-        throw e;
-      }
-
-      if (this.skater.direction === "e") {
-        this.skater.animations.play(`cruise-b-${this.skater.direction}`);
-      } else if (this.skater.direction === "w") {
-        this.skater.animations.play(`cruise-f-${this.skater.direction}`);
+      if (isStarted) {
+        if (this.skater.direction === "e") {
+          this.skater.animations.play(`cruise-b-${this.skater.direction}`);
+        } else if (this.skater.direction === "w") {
+          this.skater.animations.play(`cruise-f-${this.skater.direction}`);
+        } else {
+          this.skater.animations.play(`cruise-${this.skater.direction}`);
+        }
       } else {
-        this.skater.animations.play(`cruise-${this.skater.direction}`);
+        this.skater.animations.play(`idle-stand-${this.skater.direction}`, {
+          overlays: [getBoardCarryOverlay(this.skater.direction, true)],
+        });
       }
     }
   }
-
-  init() {}
 
   update(dt: number): void {
     if (this.animSeq !== null) {
@@ -1444,51 +1443,55 @@ class CruiseTo implements SkateUpdatable {
     }
 
     if (this.path !== null) {
-      this.path.update(dt);
-      if (this.path.hasReachedGoal) {
-        this.path.finish();
-        this.path = null;
+      if (this.path.hasStarted) {
+        this.path.update(dt);
+        if (this.path.hasReachedGoal) {
+          this.path.finish();
+          this.path = null;
 
-        this.animSeq = new AnimationSequence(
-          this.skater,
-          [
-            AnimationSequence.createAnim({
-              anim: `flip-${this.skater.direction}`,
-              type: TransitionType.Finished,
-              transition: null,
-              options: {
-                overlays: [getBoardFlipOverlay(this.skater.direction)],
-              },
-            }),
-            AnimationSequence.createAnim({
-              anim: `idle-stand-${this.skater.direction}`,
-              type: TransitionType.Time,
-              transition: { duration: 1000 },
-              options: {
-                overlays: [getBoardCarryOverlay(this.skater.direction, true)],
-              },
-            }),
-          ],
-          (anim: string) => {
-            // console.log(anim);
-          },
-        );
+          this.animSeq = new AnimationSequence(
+            this.skater,
+            [
+              AnimationSequence.createAnim({
+                anim: `flip-${this.skater.direction}`,
+                type: TransitionType.Finished,
+                transition: null,
+                options: {
+                  overlays: [getBoardFlipOverlay(this.skater.direction)],
+                },
+              }),
+              AnimationSequence.createAnim({
+                anim: `idle-stand-${this.skater.direction}`,
+                type: TransitionType.Time,
+                transition: { duration: 1000 },
+                options: {
+                  overlays: [getBoardCarryOverlay(this.skater.direction, true)],
+                },
+              }),
+            ],
+            (_: string) => {
+              // console.log(anim);
+            },
+          );
 
-        this.animSeq.start();
+          this.animSeq.start();
 
-        return;
-      }
-
-      const anim = this.skater.animations.getPlaying();
-
-      if (anim === null || !anim.includes(`-${this.skater.direction}`)) {
-        if (this.skater.direction === "e") {
-          this.skater.animations.play(`cruise-b-${this.skater.direction}`);
-        } else if (this.skater.direction === "w") {
-          this.skater.animations.play(`cruise-f-${this.skater.direction}`);
-        } else {
-          this.skater.animations.play(`cruise-${this.skater.direction}`);
+          return;
         }
+
+        const anim = this.skater.animations.getPlaying();
+
+        if (anim === null || !anim.includes(`-${this.skater.direction}`)) {
+          if (this.skater.direction === "e") {
+            this.skater.animations.play(`cruise-b-${this.skater.direction}`);
+          } else if (this.skater.direction === "w") {
+            this.skater.animations.play(`cruise-f-${this.skater.direction}`);
+          } else {
+            this.skater.animations.play(`cruise-${this.skater.direction}`);
+          }
+        }
+      } else {
+        this.path.start();
       }
     }
   }

@@ -25,6 +25,7 @@ const directionLables = [
 export default class Path {
   hasReachedGoal: boolean;
   isWaiting: boolean;
+  hasStarted: boolean;
 
   private sprite: Sprite;
   private path: Tile[];
@@ -32,7 +33,7 @@ export default class Path {
   private currStartPos: Vec2;
   private goalTile: Tile;
   private walkableTileValues: GroundArea[];
-  private hasStarted: boolean;
+
   private waitingTimer: Timer;
 
   constructor(sprite: Sprite, goal: Vec2, walkableTileValues?: GroundArea[]) {
@@ -55,10 +56,7 @@ export default class Path {
     return this.path;
   }
 
-  start() {
-    this.sprite.currentPath = this;
-    this.hasStarted = true;
-
+  start(): boolean {
     /**
      * I had occasional issues with sprites either starting or ending on a fraction of a tile which causes crashes.
      * I think most issues was due to how the browser suspended RAF so I changed the render loop handling of starting, stopping and deltas which seems to have solved these errors, but,
@@ -85,13 +83,22 @@ export default class Path {
       }
     }
 
-    // Create the path
-    this.path = createPathAStar(
-      posToTile(this.sprite.pos, this.sprite.scene.art!.tileSize),
-      this.goalTile,
-      this.sprite.scene.grid.getGrid(),
-      this.walkableTileValues,
-    );
+    try {
+      // Create the path
+      this.path = createPathAStar(
+        posToTile(this.sprite.pos, this.sprite.scene.art!.tileSize),
+        this.goalTile,
+        this.sprite.scene.grid.getGrid(),
+        this.walkableTileValues,
+      );
+    } catch (e) {
+      console.error(e);
+
+      // Occupy current tile again since we will be standing put..
+      this.sprite.scene.grid.occupyTile(this.sprite.id, this.sprite.pos);
+
+      return false;
+    }
 
     // Occupy the start tile again
     this.sprite.scene.grid.occupyTile(this.sprite.id, this.sprite.pos);
@@ -117,6 +124,10 @@ export default class Path {
 
     this.updateVelocityVector();
     this.updateDirection();
+
+    this.hasStarted = true;
+    this.sprite.currentPath = this;
+    return true;
   }
 
   update(dt: number): void {

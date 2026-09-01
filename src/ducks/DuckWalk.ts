@@ -21,23 +21,17 @@ export class DuckWalk implements DuckWalkUpdatable {
 
   private duck: Duck;
   private currAction: DuckWalkUpdatable | null;
-  private timer: Timer;
 
   constructor(duck: Duck) {
     this.duck = duck;
     this.currAction = null;
-    this.timer = new Timer();
   }
 
   init() {
     this.transitionToAction(RandomWalk.TAG, this.duck);
-    this.timer.start(1000 * randomInt(1, 6));
   }
 
   update(dt: number): void {
-
-    this.timer.update(dt);
-
     if (this.currAction === null)
       throw new Error(`State ${this.tag} not initialized`);
 
@@ -50,6 +44,7 @@ export class DuckWalk implements DuckWalkUpdatable {
           break;
         case SittingDuck.TAG:
           this.transitionToAction(RandomWalk.TAG, this.duck);
+          break;
       }
     }
   }
@@ -100,7 +95,7 @@ export class RandomWalk implements DuckWalkUpdatable {
   }
 
   update(_: number): void {
-    const numTilesInDir = 2;
+    const numTilesInDir = 4;
     const play = this.duck.scene as Play;
     const duckTile = posToTile(this.duck.pos, this.duck.scene.art.tileSize);
 
@@ -295,8 +290,7 @@ export class RandomWalk implements DuckWalkUpdatable {
             row: duckTile.row,
           },
           play.tileSize,
-        ),
-        ONE_SECOND * 3,
+        )
       );
 
       if (hasTurned) {
@@ -384,8 +378,7 @@ export class RandomWalk implements DuckWalkUpdatable {
           row: duckTile.row,
         },
         this.play.tileSize,
-      ),
-      ONE_SECOND * 1,
+      )
     );
   }
 
@@ -561,12 +554,19 @@ export class SittingDuck implements DuckWalkUpdatable {
   }
 
   update(dt: number): void {
-     this.timer.update(dt);
+    this.timer.update(dt);
 
+    if (this.timer.isStarted) {
+      if (this.timer.isRunning) {
+        this.timer.update(dt);
+      } else {
+        this.timer.stop();
+      }
+    }
   }
 
   isComplete(): boolean {
-    return !this.timer.isRunning;
+    return this.timer.isStopped;
   }
 }
 
