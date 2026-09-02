@@ -31,6 +31,7 @@ const iconSoundOff = getElement<HTMLElement>("ic-sound-off");
 
 const dialogError = getElement<HTMLDialogElement>("dialog-error");
 const btnReload = getElement<HTMLButtonElement>("btn-reload");
+const windowHeader = getElement<HTMLElement>("window-header");
 
 const tilemap = tilemapJSON as unknown as Tilemap;
 
@@ -42,6 +43,7 @@ const art = new Art({
   container: "#art-container",
   loading: "#div-loading",
 });
+
 
 const setFullscreenClass = (fullscreen: boolean) => {
   document.body.classList.toggle("fullscreen", fullscreen);
@@ -84,8 +86,11 @@ const toggleFullscreen = async () => {
   const appWindow = getCurrentWindow();
   const fullscreen = await appWindow.isFullscreen();
 
+
   await appWindow.setFullscreen(!fullscreen);
+  // await appWindow.setResizable(!fullscreen); // linux needs resizable to be true to enter fullscreen, but i don't want it to be true when not in full scren. 
   await syncFullscreenState();
+
 };
 
 const exitFullscreen = async () => {
@@ -100,6 +105,8 @@ const exitFullscreen = async () => {
   await syncFullscreenState();
 };
 
+
+
 async function main() {
   {
     try {
@@ -110,6 +117,18 @@ async function main() {
       if (dialogError.open) {
         dialogError.close();
       }
+
+      windowHeader.addEventListener("mousedown", async (event) => {
+
+
+        const appWindow = getCurrentWindow();
+
+        if (event.button !== 0) return;
+
+        if (event.target !== windowHeader) return;
+
+        await appWindow.startDragging();
+      });
 
       btnReload.addEventListener("click", () => {
         window.navigation.reload();

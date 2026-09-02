@@ -3,6 +3,7 @@
   "productName": "mono-park",
   "version": "0.1.0",
   "identifier": "com.pim.mono-park",
+    "mainBinaryName": "mono-park",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -15,11 +16,12 @@
         "title": "Mono park",
         "width": 1280,
         "height": 720,
-        "resizable": false,
+        "resizable": true,
         "transparent": true,
         "decorations": false,
         "maximizable": false,
         "fullscreen": false
+   
       }
     ],
     "security": {
@@ -41,3 +43,4 @@
     }
   }
 }
+

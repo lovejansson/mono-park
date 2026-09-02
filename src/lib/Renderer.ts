@@ -61,8 +61,8 @@ export default class Renderer {
 
     const scaled = scaleToSize(this.art.scale);
 
-    canvas.style.width = scaled ? `${scaled.width}px` : `100%`;
-    canvas.style.height = scaled ? `${scaled.height}px` : `100%`;
+    canvas.style.width = `100%`;
+    canvas.style.height =`100%`;
 
     canvas.style.imageRendering = "pixelated";
 
