@@ -88,7 +88,6 @@ const toggleFullscreen = async () => {
 
 
   await appWindow.setFullscreen(!fullscreen);
-  // await appWindow.setResizable(!fullscreen); // linux needs resizable to be true to enter fullscreen, but i don't want it to be true when not in full scren. 
   await syncFullscreenState();
 
 };

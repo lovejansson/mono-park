@@ -12,7 +12,7 @@ import { GroundArea } from "../lib/Grid.ts";
 import type { Direction, Vec2 } from "../lib/types.ts";
 import { isSamePos } from "../lib/utils.ts";
 import Play from "../Play.ts";
-import { FIVE_MINUTES, ONE_MINUTE, THIRTY_SECONDS } from "../Timer.ts";
+import { ONE_MINUTE, THIRTY_SECONDS } from "../Timer.ts";
 import { StrollSpot } from "./StrollPark.ts";
 
 export default class Stroll implements StrollUpdatable {

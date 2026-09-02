@@ -106,16 +106,14 @@ export class RandomWalk implements DuckWalkUpdatable {
 
     if (pixelDiff === this.duck.scene.art.tileSize) {
       const neighbourState = this.getNeighbourState();
-      // console.log("DUCK UPDATE CHANGE TILE");
-      // console.log(this.duck.pos, this.currPosStart);
+
       if (
         !neighbourState.f.isFree &&
         !neighbourState.l.isFree &&
         !neighbourState.r.isFree &&
         !neighbourState.b.isFree
       ) {
-        // console.log("Duck has no tile to advance to, is blocked");
-        // console.dir(duckTile);
+
         this.isBlocked = true;
         this.duck.animations.play(`idle-sit-${this.duck.direction}`);
         return;
@@ -126,14 +124,11 @@ export class RandomWalk implements DuckWalkUpdatable {
       // Turn left or right
 
       if (this.numTilesInSameDir >= numTilesInDir) {
-        // console.log(
-        //   "Duck as moved x amount of tiles in the same direction and is about to change",
-        // );
 
         const turnRight = randomBool();
 
         if (turnRight && neighbourState.r.isFree) {
-          // console.log("Duck is turning right");
+
           this.duck.direction = neighbourState.r.dir;
           this.duck.scene.grid.occupyTile(
             this.duck.id,
@@ -148,7 +143,7 @@ export class RandomWalk implements DuckWalkUpdatable {
 
           hasTurned = true;
         } else if (neighbourState.l.isFree) {
-          // console.log("Duck is turning left");
+   
           this.duck.direction = neighbourState.l.dir;
           this.duck.scene.grid.occupyTile(
             this.duck.id,
@@ -162,7 +157,7 @@ export class RandomWalk implements DuckWalkUpdatable {
           );
           hasTurned = true;
         } else if (neighbourState.r.isFree) {
-          // console.log("Duck is turning right");
+   
           this.duck.direction = neighbourState.r.dir;
           this.duck.scene.grid.occupyTile(
             this.duck.id,
@@ -176,9 +171,7 @@ export class RandomWalk implements DuckWalkUpdatable {
           );
           hasTurned = true;
         } else if (neighbourState.f.isFree) {
-          // console.log(
-          //   "Duck is continuing forward anyway bc right/left was blocked",
-          // );
+
           this.duck.direction = neighbourState.f.dir;
           this.duck.scene.grid.occupyTile(
             this.duck.id,
@@ -191,9 +184,7 @@ export class RandomWalk implements DuckWalkUpdatable {
             ),
           );
         } else {
-          // console.log(
-          //   "Duck is continuing backwards anyway bc right/left/forwards was blocked",
-          // );
+    
           this.duck.direction = neighbourState.b.dir;
           this.duck.scene.grid.occupyTile(
             this.duck.id,
@@ -211,12 +202,10 @@ export class RandomWalk implements DuckWalkUpdatable {
 
         // unoccupy the tile the duck now has arrived to since we picked a new target tile above
       } else if (!neighbourState.f.isFree) {
-        // console.log(
-        //   "Duck should continue forward but is blocked and is turning left/right",
-        // );
+
 
         if (neighbourState.r.isFree) {
-          // console.log("Duck is turning right");
+
           this.duck.direction = neighbourState.r.dir;
           this.duck.scene.grid.occupyTile(
             this.duck.id,
@@ -231,7 +220,7 @@ export class RandomWalk implements DuckWalkUpdatable {
 
           hasTurned = true;
         } else if (neighbourState.l.isFree) {
-          // console.log("Duck is turning left");
+   
           this.duck.direction = neighbourState.l.dir;
           this.duck.scene.grid.occupyTile(
             this.duck.id,
@@ -245,9 +234,7 @@ export class RandomWalk implements DuckWalkUpdatable {
           );
           hasTurned = true;
         } else if (neighbourState.b.isFree) {
-          // console.log(
-          //   "Duck is continuing backwards anyway bc right/left/forwards was blocked",
-          // );
+
           this.duck.direction = neighbourState.b.dir;
           this.duck.scene.grid.occupyTile(
             this.duck.id,
@@ -520,7 +507,7 @@ export class RandomWalk implements DuckWalkUpdatable {
       ]);
       return isWalkable;
     } catch (e) {
-      console.log("Error isTileWalkable", e, row, col);
+      console.error("Error isWalkableTile", e, row, col);
       return false;
     }
   }

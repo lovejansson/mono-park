@@ -507,8 +507,7 @@ export default class Play extends Scene {
       const v2 = renderSortCompValue.get(s2.id);
 
       if (v1 === undefined || v2 === undefined) {
-        console.log(s1, s2);
-        console.log("Render sort error");
+        console.error("Render sort error: undefined render sort value for one of the objects");
         return 0;
       }
 

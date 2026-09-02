@@ -1,5 +1,4 @@
 import { createGrid, getRandomFreeTile } from "../grid";
-import Timer from "../Timer";
 import type Scene from "./Scene";
 import type { Tile, Vec2 } from "./types";
 import { posToTile } from "./utils";

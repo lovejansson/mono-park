@@ -1,7 +1,6 @@
-import { GroundArea } from "./Grid";
 import type Scene from "./Scene";
 import type { Tile } from "./types";
-import { tileToPos, isSameTile } from "./utils";
+import { tileToPos } from "./utils";
 
 export enum ResolutionResult {
   MOVE,

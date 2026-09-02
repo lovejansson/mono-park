@@ -22,7 +22,7 @@ export default class CafeVisitor extends Human {
 
   init(): void {
     super.init();
-  this.animations.registerSpritesheet("fika");
+    this.animations.registerSpritesheet("fika");
     if (!this.play.cafe.hasTableReservation(this.group.name)) {
       if (!this.play.cafe.hasAvailableTables())
         throw new Error("No free tables in cafe.");
@@ -39,7 +39,6 @@ export default class CafeVisitor extends Human {
       Fika.TAG,
       this,
       this.play.cafe,
-      table,
       table.getSeat(this.id, this.seatDir),
     );
   }

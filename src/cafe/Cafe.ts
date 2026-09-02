@@ -112,7 +112,7 @@ class Guests {
 }
 
 export default class Cafe extends House {
-  private play: Play;
+
   orders: OrdersManager;
   private tables: Table[];
   private reservedTables: Map<number, string | null>;
@@ -129,7 +129,6 @@ export default class Cafe extends House {
     tables: Table[],
   ) {
     super(scene, pos, width, height, image, door);
-    this.play = scene;
     this.orders = new OrdersManager();
     this.tables = tables;
     this.reservedTables = new Map();
@@ -271,7 +270,7 @@ export default class Cafe extends House {
   }
 
   hasTableReservation(guests: string): boolean {
-    for (const [t, g] of this.reservedTables) {
+    for (const [_, g] of this.reservedTables) {
       if (g === guests) return true;
     }
 

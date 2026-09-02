@@ -14,21 +14,12 @@ export type ArtConfig = {
   displayGrid?: boolean;
   gridColor?: string;
   services?: Record<string, any>;
-  scale?: "hd" | "4k";
   loading?: string;
 };
 
 const CONTAINER_SELECTOR_DEFAULT = "#art-container";
 
 export default class Art {
-  keys: {
-    up: boolean;
-    right: boolean;
-    down: boolean;
-    left: boolean;
-    space: boolean;
-  };
-
   spritesheets!: SpritesheetsManager;
   images: ImagesManager;
   audio: AudioPlayer;
@@ -39,7 +30,6 @@ export default class Art {
   tileSize: number;
   displayGrid: boolean;
   gridColor: string;
-  scale: "hd" | "4k" | null;
 
   isPlaying: boolean;
 
@@ -50,7 +40,7 @@ export default class Art {
 
   constructor(config: ArtConfig) {
     this.images = new ImagesManager();
-    this.renderer = new Renderer(this, config);
+    this.renderer = new Renderer(this, config, this.onRenderError);
 
     this.spritesheets = new SpritesheetsManager();
     this.audio = new AudioPlayer();
@@ -63,16 +53,7 @@ export default class Art {
     this.tileSize = config.tileSize;
     this.displayGrid = config.displayGrid ?? false;
     this.gridColor = config.gridColor ?? "white";
-    this.scale = config.scale ?? null;
     this.services = config.services ?? null;
-
-    this.keys = {
-      up: false,
-      right: false,
-      down: false,
-      left: false,
-      space: false,
-    };
 
     this.startTime = null;
     this.currId = -1;
@@ -85,14 +66,14 @@ export default class Art {
 
   async init(): Promise<void> {
 
-    if(this.config.loading) {
+    if (this.config.loading) {
       const loadingEl = document.querySelector(this.config.loading);
 
-      if(loadingEl !== null) {
-         loadingEl.classList.remove("hidden");
+      if (loadingEl !== null) {
+        loadingEl.classList.remove("hidden");
       }
     }
-   
+
     this.startTime = new Date();
 
     this.config.play.art = this;
@@ -108,38 +89,7 @@ export default class Art {
       this.config.container ?? CONTAINER_SELECTOR_DEFAULT,
     );
 
-    addEventListener("keydown", (e) => {
-      const key = e.key.toLowerCase();
-      if (["arrowup", "w"].includes(key)) this.keys.up = true;
-      if (["arrowright", "d"].includes(key)) this.keys.right = true;
-      if (["arrowdown", "s"].includes(key)) this.keys.down = true;
-      if (["arrowleft", "a"].includes(key)) this.keys.left = true;
-      if (key === " ") this.keys.space = true;
-    });
-
-    addEventListener("keyup", (e) => {
-      const key = e.key.toLowerCase();
-      if (["arrowup", "w"].includes(key)) this.keys.up = false;
-      if (["arrowright", "d"].includes(key)) this.keys.right = false;
-      if (["arrowdown", "s"].includes(key)) this.keys.down = false;
-      if (["arrowleft", "a"].includes(key)) this.keys.left = false;
-      if (key === " ") this.keys.space = false;
-    });
-
-    try {
-      this.renderer.start();
-    } catch (e) {
-      if (this.startTime) {
-        const { hours, minutes, seconds } = diffHMS(new Date(), this.startTime);
-        // this.audio.beep();
-        console.log(`Time since start ${hours}:${minutes}:${seconds}`);
-      }
-
-      if (this.audio.onoff) {
-        this.audio.onOffSwitch();
-      }
-      console.error(e);
-    }
+    this.renderer.start();
 
     if (this.config.pause) {
       this.config.pause.start();
@@ -147,11 +97,11 @@ export default class Art {
       this.config.play.start();
     }
 
-      if(this.config.loading) {
+    if (this.config.loading) {
       const loadingEl = document.querySelector(this.config.loading);
 
-      if(loadingEl !== null) {
-         loadingEl.classList.add("hidden");
+      if (loadingEl !== null) {
+        loadingEl.classList.add("hidden");
       }
     }
   }
@@ -178,14 +128,13 @@ export default class Art {
       this.config.pause.start();
     }
   }
+
+  private onRenderError(e: Error, runtime: { hours: number; minutes: number; seconds: number }): void {
+    console.error(`Art error after ${runtime.hours}:${runtime.minutes}:${runtime.seconds}`, e);
+     if (this.audio.onoff) {
+      this.audio.onOffSwitch();
+    }
+    throw e;
+  };
 }
 
-export function diffHMS(date1: Date, date2: Date) {
-  let diff = Math.abs(date2.getTime() - date1.getTime());
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  diff -= hours * 1000 * 60 * 60;
-  const minutes = Math.floor(diff / (1000 * 60));
-  diff -= minutes * 1000 * 60;
-  const seconds = Math.floor(diff / 1000);
-  return { hours, minutes, seconds };
-}

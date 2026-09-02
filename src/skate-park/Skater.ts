@@ -139,14 +139,6 @@ export default class Skater extends Human {
       }
     };
 
-    this.animations.onLoop = (anim: string, loopCount: number) => {
-      // console.log("LOOP", animation, loopCount);
-    };
-
-    this.animations.onComplete = (animation: string) => {
-      // console.log("COMPLETE", animation);
-    };
-
     this.transitionToAction(Skate.TAG, this, this.initAction);
   }
 

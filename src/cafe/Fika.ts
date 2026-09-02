@@ -19,7 +19,6 @@ import { isSamePos } from "../lib";
 
 import { getGoalPositionWithDirectionAwareRounding } from "../utils";
 
-import type Table from "./Table";
 import type { Seat } from "./Table";
 import { fikaItems } from "./Cafe";
 
@@ -586,15 +585,13 @@ export default class Fika implements CafeUpdatable {
 
   private human: Human;
   private cafe: Cafe;
-  private table: Table;
   private seat: Seat;
   private currAction: CafeUpdatable | CommonUpdatable | null;
 
-  constructor(human: Human, cafe: Cafe, table: Table, seat: Seat) {
+  constructor(human: Human, cafe: Cafe, seat: Seat) {
     this.human = human;
     this.currAction = null;
     this.cafe = cafe;
-    this.table = table;
     this.seat = seat;
   }
 

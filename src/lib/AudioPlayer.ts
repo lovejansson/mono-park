@@ -124,7 +124,7 @@ export default class AudioPlayer {
   }
 
   async play(id: string, volume: number = 1, loop = false): Promise<void> {
-    console.log("PLAY", id)
+
     if (!this.onoff) throw new AudioPlayerOffStateError("play");
 
     if (this.playingAudioNodes.has(id)) return;

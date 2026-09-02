@@ -3,7 +3,7 @@ import Timer, { ONE_SECOND } from "../Timer.ts";
 import { GroundArea, type Sprite } from "./index.ts";
 import { ResolutionResult } from "./PathCollisionManager.ts";
 import type { Tile, Direction, Vec2 } from "./types.ts";
-import { tileToPos, getPosDiff, isSameTile, posToTile } from "./utils.ts";
+import { tileToPos, getPosDiff, posToTile } from "./utils.ts";
 
 // Get direction label by direction vector, first index is y delta and second index is x delta: directionLables[y + 1][x + 1]. Add + 1 since indexing doesn't start from -1.
 const directionLables = [

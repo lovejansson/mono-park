@@ -400,7 +400,7 @@ export default class Skate implements SkateUpdatable {
   }
 
   private cruiseToSitOnBench(bench: Bench, walkableTiles?: GroundArea[]): void {
-    // console.log("CRUISE TO BENCH?");
+
     this.bench = bench;
 
     if (
@@ -455,12 +455,6 @@ export default class Skate implements SkateUpdatable {
   private transitionToAction<
     A extends keyof (SkateActionSpec & CommonActionSpec),
   >(tag: A, ...args: (SkateActionSpec & CommonActionSpec)[A]["args"]) {
-    if (tag === CruiseTo.TAG) {
-      console.log(`
-        Cruising from action ${this.currAction!.tag} 
-        and pos ${this.skater.pos.x} ${this.skater.pos.y} to Cruise goal: ${this.cruiseGoal}, ${this.skater.animations.getPlaying()}`);
-    }
-
     this.currAction = createAction(tag, ...args);
     this.currAction!.init();
   }
@@ -576,7 +570,7 @@ export class FlatObstacle implements SkateUpdatable {
   private play: Play;
   private isReadyToCruise: boolean;
 
-  constructor(skater: Skater, obstacle: Obstacle, ms: number) {
+  constructor(skater: Skater, _: Obstacle, ms: number) {
     this.skater = skater;
     this.skater.action = this.tag;
     this.skater.direction = "s";
@@ -740,10 +734,6 @@ class RailTricks implements SkateUpdatable {
     this.animationSequence = new AnimationSequence(
       this.skater,
       sequence,
-      // (anim) => {
-      //   // console.log(anim);
-      //   // console.log("Skater X ", this.skater.pos.x);
-      // },
     );
   }
 
@@ -1118,7 +1108,6 @@ class BowlTricks implements SkateUpdatable {
   private obstacle: Bowl;
   private skater: Skater;
   private animationSequence: AnimationSequence;
-  private tileSize: number;
   private start: { pos: Vec2; bowlSide: BowlSide };
   private path: Path | null;
   private step: BowlTricksStep;
@@ -1131,7 +1120,6 @@ class BowlTricks implements SkateUpdatable {
   ) {
     this.skater = skater;
     this.skater.action = this.tag;
-    this.tileSize = this.skater.tileSize;
     this.obstacle = obstacle;
 
     this.start = start;
@@ -1403,9 +1391,6 @@ class CruiseTo implements SkateUpdatable {
             },
           }),
         ],
-        (_: string) => {
-          // console.log(anim);
-        },
       );
 
       this.animSeq.start();
@@ -1469,9 +1454,6 @@ class CruiseTo implements SkateUpdatable {
                 },
               }),
             ],
-            (_: string) => {
-              // console.log(anim);
-            },
           );
 
           this.animSeq.start();
