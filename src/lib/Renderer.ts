@@ -3,7 +3,6 @@ import StaticImage from "./objects/StaticImage";
 import Sprite from "./objects/Sprite";
 import Scene from "./Scene";
 
-
 export default class Renderer {
   private ctx: CanvasRenderingContext2D | null;
   private art: Art;
@@ -13,10 +12,20 @@ export default class Renderer {
   private isRunning: boolean;
   private animationFrameID: number;
   private hasUpdatedPlayForPause: boolean;
-  private onErrorCb: (e: Error, runtime: { hours: number; minutes: number; seconds: number }) => void;
+  private onErrorCb: (
+    e: Error,
+    runtime: { hours: number; minutes: number; seconds: number },
+  ) => void;
   private startTime: Date;
 
-  constructor(art: Art, config: ArtConfig, onError: (e: Error, runtime: { hours: number; minutes: number; seconds: number }) => void) {
+  constructor(
+    art: Art,
+    config: ArtConfig,
+    onError: (
+      e: Error,
+      runtime: { hours: number; minutes: number; seconds: number },
+    ) => void,
+  ) {
     this.ctx = null; // Is set in init();
     this.art = art;
     this.playScene = config.play;
@@ -127,14 +136,13 @@ export default class Renderer {
             this.art.gridColor,
           );
         }
-      
       } else {
         if (this.pauseScene !== undefined) {
           this.updateSceneAnimations(this.pauseScene, dt);
           this.pauseScene.update(dt);
           this.drawSceneCanvasObjects(this.pauseScene);
         } else {
-          // Just update once to get something to show in pause 
+          // Just update once to get something to show in pause
 
           if (!this.hasUpdatedPlayForPause) {
             this.updateSceneAnimations(this.playScene, dt);
@@ -156,19 +164,14 @@ export default class Renderer {
       }
 
       this.elapsedPrev = elapsed;
-      this.animationFrameID = requestAnimationFrame((e) =>
-        this.run(e),
-      );
+      this.animationFrameID = requestAnimationFrame((e) => this.run(e));
     } catch (e) {
       if (this.animationFrameID !== -1) {
         cancelAnimationFrame(this.animationFrameID);
         this.animationFrameID = -1;
       }
 
-      const { hours, minutes, seconds } = diffHMS(
-        new Date(),
-        this.startTime,
-      );
+      const { hours, minutes, seconds } = diffHMS(new Date(), this.startTime);
 
       this.onErrorCb(e as Error, { hours, minutes, seconds });
     }

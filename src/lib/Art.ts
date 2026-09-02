@@ -15,6 +15,7 @@ export type ArtConfig = {
   gridColor?: string;
   services?: Record<string, any>;
   loading?: string;
+  onError?: (e: Error) => void;
 };
 
 const CONTAINER_SELECTOR_DEFAULT = "#art-container";
@@ -34,16 +35,17 @@ export default class Art {
   isPlaying: boolean;
 
   private config: ArtConfig;
-  startTime: Date | null;
   private currId: number;
   private renderer!: Renderer;
+  private onErrorCb: ((e: Error) => void) | null;
 
   constructor(config: ArtConfig) {
     this.images = new ImagesManager();
-    this.renderer = new Renderer(this, config, this.onRenderError);
+    this.renderer = new Renderer(this, config, this.onRenderError.bind(this));
 
     this.spritesheets = new SpritesheetsManager();
     this.audio = new AudioPlayer();
+    console.log("HEJS, ");
 
     this.isPlaying = false;
 
@@ -54,8 +56,8 @@ export default class Art {
     this.displayGrid = config.displayGrid ?? false;
     this.gridColor = config.gridColor ?? "white";
     this.services = config.services ?? null;
+    this.onErrorCb = config.onError ?? null;
 
-    this.startTime = null;
     this.currId = -1;
   }
 
@@ -65,7 +67,6 @@ export default class Art {
   }
 
   async init(): Promise<void> {
-
     if (this.config.loading) {
       const loadingEl = document.querySelector(this.config.loading);
 
@@ -73,8 +74,6 @@ export default class Art {
         loadingEl.classList.remove("hidden");
       }
     }
-
-    this.startTime = new Date();
 
     this.config.play.art = this;
 
@@ -129,12 +128,21 @@ export default class Art {
     }
   }
 
-  private onRenderError(e: Error, runtime: { hours: number; minutes: number; seconds: number }): void {
-    console.error(`Art error after ${runtime.hours}:${runtime.minutes}:${runtime.seconds}`, e);
-     if (this.audio.onoff) {
+  private onRenderError(
+    e: Error,
+    runtime: { hours: number; minutes: number; seconds: number },
+  ): void {
+    console.dir(this)
+    console.error(
+      `Art error after ${runtime.hours}:${runtime.minutes}:${runtime.seconds}`,
+      e,
+    );
+
+    if (this.audio.onoff) {
       this.audio.onOffSwitch();
     }
-    throw e;
-  };
-}
 
+    if (this.onErrorCb) this.onErrorCb(e);
+    else throw e;
+  }
+}

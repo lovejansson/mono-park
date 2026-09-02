@@ -42,8 +42,8 @@ const art = new Art({
   tileSize: tilemap.tileSize,
   container: "#art-container",
   loading: "#div-loading",
+  onError: () => dialogError.showModal(),
 });
-
 
 const setFullscreenClass = (fullscreen: boolean) => {
   document.body.classList.toggle("fullscreen", fullscreen);
@@ -86,10 +86,8 @@ const toggleFullscreen = async () => {
   const appWindow = getCurrentWindow();
   const fullscreen = await appWindow.isFullscreen();
 
-
   await appWindow.setFullscreen(!fullscreen);
   await syncFullscreenState();
-
 };
 
 const exitFullscreen = async () => {
@@ -104,74 +102,64 @@ const exitFullscreen = async () => {
   await syncFullscreenState();
 };
 
-
-
 async function main() {
-  {
-    try {
-      await art.init();
+  await art.init();
 
-      await syncUI();
+  await syncUI();
 
-      if (dialogError.open) {
-        dialogError.close();
-      }
-
-      windowHeader.addEventListener("mousedown", async (event) => {
-
-        const appWindow = getCurrentWindow();
-
-        if (event.button !== 0) return;
-
-        if (event.target !== windowHeader) return;
-
-        await appWindow.startDragging();
-      });
-
-      btnReload.addEventListener("click", () => {
-        window.navigation.reload();
-        dialogError.close();
-      });
-
-      btnPlay.addEventListener("click", () => {
-        if (art.isPlaying) {
-          art.pause();
-        } else {
-          art.play();
-        }
-
-        syncPlayIcon();
-      });
-
-      btnSound.addEventListener("click", () => {
-        art.audio.toggleSound();
-        syncSoundIcon();
-      });
-
-      btnMin.addEventListener("click", async () => {
-        if (!isTauri()) return;
-
-        await getCurrentWindow().minimize();
-      });
-
-      btnMax.addEventListener("click", toggleFullscreen);
-
-      btnClose.addEventListener("click", async () => {
-        if (!isTauri()) return;
-
-        await getCurrentWindow().close();
-      });
-
-      document.addEventListener("keydown", async (event) => {
-        if (event.key !== "Escape") return;
-
-        await exitFullscreen();
-      });
-    } catch (e) {
-      console.error(e);
-      dialogError.showModal();
-    }
+  if (dialogError.open) {
+    dialogError.close();
   }
+
+  windowHeader.addEventListener("mousedown", async (event) => {
+    const appWindow = getCurrentWindow();
+
+    if (event.button !== 0) return;
+
+    if (event.target !== windowHeader) return;
+
+    await appWindow.startDragging();
+  });
+
+  btnReload.addEventListener("click", () => {
+    window.navigation.reload();
+    dialogError.close();
+  });
+
+  btnPlay.addEventListener("click", () => {
+    if (art.isPlaying) {
+      art.pause();
+    } else {
+      art.play();
+    }
+
+    syncPlayIcon();
+  });
+
+  btnSound.addEventListener("click", () => {
+    art.audio.toggleSound();
+    syncSoundIcon();
+  });
+
+  btnMin.addEventListener("click", async () => {
+    if (!isTauri()) return;
+
+    await getCurrentWindow().minimize();
+  });
+
+  btnMax.addEventListener("click", toggleFullscreen);
+
+  btnClose.addEventListener("click", async () => {
+    if (!isTauri()) return;
+
+    await getCurrentWindow().close();
+  });
+
+  document.addEventListener("keydown", async (event) => {
+    if (event.key !== "Escape") return;
+
+    await exitFullscreen();
+  });
 }
 
 main();
