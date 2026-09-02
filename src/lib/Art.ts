@@ -131,7 +131,7 @@ export default class Art {
     e: Error,
     runtime: { hours: number; minutes: number; seconds: number },
   ): void {
-    console.dir(this)
+
     console.error(
       `Art error after ${runtime.hours}:${runtime.minutes}:${runtime.seconds}`,
       e,

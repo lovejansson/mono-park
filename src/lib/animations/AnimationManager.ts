@@ -296,6 +296,7 @@ export default class AnimationManager {
   ): void {
     if (this.playing === null) return;
 
+
     // Currently the overlay animations frames are allowed to not sync with the main animation bc sometimes there is just an overlay image which repeats...
     // might have to provide separate update logic for overlays in the future.
 

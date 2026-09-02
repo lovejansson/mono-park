@@ -1718,6 +1718,7 @@ export class SitOnBench implements SkateUpdatable {
             dx: 7,
           });
         }
+       
         this.animSeqSitDown.finish();
         this.skater.pos.y -= 4;
         this.skater.direction = "s";

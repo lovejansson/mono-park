@@ -112,6 +112,7 @@ async function main() {
   }
 
   windowHeader.addEventListener("mousedown", async (event) => {
+      if (!isTauri()) return;
     const appWindow = getCurrentWindow();
 
     if (event.button !== 0) return;
