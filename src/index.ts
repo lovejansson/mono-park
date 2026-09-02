@@ -120,7 +120,6 @@ async function main() {
 
       windowHeader.addEventListener("mousedown", async (event) => {
 
-
         const appWindow = getCurrentWindow();
 
         if (event.button !== 0) return;
