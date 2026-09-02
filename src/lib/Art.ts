@@ -45,7 +45,6 @@ export default class Art {
 
     this.spritesheets = new SpritesheetsManager();
     this.audio = new AudioPlayer();
-    console.log("HEJS, ");
 
     this.isPlaying = false;
 
