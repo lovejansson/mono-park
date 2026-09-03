@@ -5,10 +5,10 @@ The artwork is rendered at 640×360 pixels and scales to 16:9 resolutions using 
 
 ## Tech stack
 
-[pim-art template](https://github.com/lovejansson/pim-art)
-[Typescript](https://www.typescriptlang.org/)
-[Vite](https://vite.dev/)
-[Tauri](https://v2.tauri.app/)
+* [pim-art template](https://github.com/lovejansson/pim-art)
+* [Typescript](https://www.typescriptlang.org/)
+* [Vite](https://vite.dev/)
+* [Tauri](https://v2.tauri.app/)
 
 
 
